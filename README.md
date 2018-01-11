@@ -10,6 +10,8 @@ Google uses unique IDs for each folder and file. This makes it difficult to inte
 
 This [Flysystem adapter](https://github.com/thephpleague/flysystem) works around that problem by seamlessly translating paths from "display paths" to "virtual paths", and vice versa.
 
+For example: virtual path `/Xa3X9GlR6EmbnY1RLVTk5VUtOVkk/0B3X9GlR6EmbnY1RLVTk5VUtOVkk` becomes `/My Nice Dir/myFile.ext` and all ID handling is hidden.
+
 ## Installation
 
 ```bash
