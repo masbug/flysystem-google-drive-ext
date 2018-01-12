@@ -254,7 +254,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     {
         if($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, true, true);
-            $newpathDir = Util::dirname($newpath);
+            $newpathDir = self::dirname($newpath);
             try {
                 $toPath = $this->toVirtualPath($newpathDir, false, true);
             } catch(FileNotFoundException $e) {
@@ -308,7 +308,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     {
         if($this->useDisplayPaths) {
             $srcId = $this->toVirtualPath($path, false, true);
-            $newpathDir = Util::dirname($newpath);
+            $newpathDir = self::dirname($newpath);
             $toPath = $this->toSingleVirtualPath($newpathDir, false, false, true, true);
             if($toPath === false)
                 return false;
@@ -612,7 +612,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             $path = $this->toVirtualPath($path, true, true);
         if(($obj = $this->getFileObject($path, true))) {
             if($obj instanceof Google_Service_Drive_DriveFile) {
-                return $this->normaliseObject($obj, Util::dirname($path));
+                return $this->normaliseObject($obj, self::dirname($path));
             }
         }
         return false;
@@ -1186,7 +1186,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         if(isset($obj) && $obj instanceof Google_Service_Drive_DriveFile) {
             $this->cacheFileObjects[$obj->getId()] = $obj;
             $this->cacheObjects([$obj->getId() => $obj]);
-            $result = $this->normaliseObject($obj, Util::dirname($path));
+            $result = $this->normaliseObject($obj, self::dirname($path));
 
             if(($visibility = $config->get('visibility'))) {
                 if($this->setVisibility($result['virtual_path'], $visibility, true))
@@ -1641,7 +1641,7 @@ class GoogleDriveAdapter extends AbstractAdapter
                 return false;
             }
 
-            $subdir = $is_dir ? $displayPath : Util::dirname($displayPath);
+            $subdir = $is_dir ? $displayPath : self::dirname($displayPath);
             if($subdir === '' || $this->createDir($subdir, new Config(), true) === false) {
                 if($can_throw)
                     throw $e;
@@ -1730,5 +1730,12 @@ class GoogleDriveAdapter extends AbstractAdapter
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
         $filename = mb_strcut(pathinfo($filename, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($filename)).($ext ? '.'.$ext : '');
         return $filename;
+    }
+
+    public static function dirname($path)
+    {
+        // fix for Flysystem bug on Windows
+        $path = Util::normalizeDirname(dirname($path));
+        return str_replace('\\', '/', $path);
     }
 }
