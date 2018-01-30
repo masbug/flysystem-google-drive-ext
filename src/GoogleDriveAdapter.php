@@ -163,6 +163,12 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     private $requestedIds = [];
 
+    /**
+     * GoogleDriveAdapter constructor.
+     * @param Google_Service_Drive $service
+     * @param string|null          $root
+     * @param array                $options
+     */
     public function __construct(Google_Service_Drive $service, $root = null, $options = [])
     {
         $this->service = $service;
@@ -1173,10 +1179,10 @@ class GoogleDriveAdapter extends AbstractAdapter
                     echo "* Uploading next chunk.\n";
                 $status = $media->nextChunk();
             } while($status === false);
+
             // The final value of $status will be the data from the API for the object that has been uploaded.
-            if($status != false) {
+            if($status !== false)
                 $obj = $status;
-            }
 
             $client->setDefer(false);
         }
@@ -1198,6 +1204,11 @@ class GoogleDriveAdapter extends AbstractAdapter
         return false;
     }
 
+    /**
+     * @param array $ids
+     * @param bool $checkDir
+     * @return array
+     */
     protected function getObjects($ids, $checkDir = false)
     {
         if($checkDir && !$this->useHasDir)
@@ -1251,14 +1262,15 @@ class GoogleDriveAdapter extends AbstractAdapter
 
                     if($count > 90) {
                         // batch requests are limited to 100 calls in a single batch request
-                        $results = array_merge($batch->execute(), $results);
-
+                        $results[] = $batch->execute();
                         $batch = $service->createBatch();
                         $count = 0;
                     }
                 }
                 if($count > 0)
-                    $results = array_merge($batch->execute(), $results);
+                    $results[] = $batch->execute();
+                if(!empty($results))
+                    $results = array_merge(...$results);
 
                 foreach($results as $key => $value) {
                     if($value instanceof Google_Service_Drive_DriveFile) {
@@ -1290,10 +1302,10 @@ class GoogleDriveAdapter extends AbstractAdapter
         return $objects;
     }
 
-    protected function buildPathFromCacheFileObjects($itemId)
+    protected function buildPathFromCacheFileObjects($lastItemId)
     {
         $complete_paths = [];
-        $itemIds = [$itemId];
+        $itemIds = [$lastItemId];
         $paths = ['' => ''];
         $is_first = true;
         while(!empty($itemIds)) {
@@ -1325,10 +1337,10 @@ class GoogleDriveAdapter extends AbstractAdapter
                 }
 
                 if(!empty($parents))
-                    $new_itemIds = array_merge((array)($obj->getParents()), $new_itemIds);
+                    $new_itemIds[] = (array)($obj->getParents());
             }
             $paths = $new_paths;
-            $itemIds = $new_itemIds;
+            $itemIds = !empty($new_itemIds) ? array_merge(...$new_itemIds) : [];
         }
         return $complete_paths;
     }
@@ -1471,9 +1483,13 @@ class GoogleDriveAdapter extends AbstractAdapter
                 $this->markRequest($id, $is_last);
                 if(DEBUG_ME)
                     echo 'New req: '.$id;
-                $items = array_merge($items, $this->getItems($id, false, 0, $is_last ? '' : 'mimeType = "'.self::DIRMIME.'"'));
+                $items[] = $this->getItems($id, false, 0, $is_last ? '' : 'mimeType = "'.self::DIRMIME.'"');
                 if(DEBUG_ME)
                     echo " ...done\n";
+            }
+            if(!empty($items)) {
+                /** @noinspection SlowArrayOperationsInLoopInspection */
+                $items = array_merge(...$items);
             }
 
             $nextItemId = null;
@@ -1500,7 +1516,7 @@ class GoogleDriveAdapter extends AbstractAdapter
                         }
                     } else {
                         if(!in_array($itemId, $this->cachedPaths[$fullPath])) {
-                            array_push($this->cachedPaths[$fullPath], $itemId);
+                            $this->cachedPaths[$fullPath][] = $itemId;
                             if(DEBUG_ME)
                                 echo 'Caching [DUP]: '.$fullPath.' => '.$itemId."\n";
                         }
@@ -1548,7 +1564,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             } else {
                 $id = $this->cachedPaths[$tmp];
                 $new_paths = [];
-                foreach($paths as &$path) {
+                foreach($paths as $path) {
                     $parentId = $path === '' ? '' : basename($path);
                     if($parentId === '' || (!empty($this->cacheFileObjects[$id]->parents) && in_array($parentId, $this->cacheFileObjects[$id]->parents))) {
                         $new_paths[] = $path.'/'.$id;
@@ -1663,7 +1679,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     {
         if(!isset($this->requestedIds[$id]))
             return true;
-        if($this->requestedIds[$id]['type'] === false && $is_full_req)
+        if($is_full_req && $this->requestedIds[$id]['type'] === false)
             return true; // we're making a full dir request and previous request was dirs only...allow
         if(time() - $this->requestedIds[$id]['time'] > self::FILE_OBJECT_MINIMUM_VALID_TIME)
             return true;
