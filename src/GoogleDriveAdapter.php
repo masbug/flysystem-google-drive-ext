@@ -1076,7 +1076,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     protected function getDownloadUrl($file)
     {
         if(strpos($file->mimeType, 'application/vnd.google-apps') !== 0) {
-            $params = [ 'alt' => 'media' ] + $this->optParams;
+            $params = ['alt' => 'media'] + $this->optParams;
             return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'?'.http_build_query($params);
         }
 
@@ -1088,7 +1088,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         }
         $mime = rawurlencode($mime);
 
-        $params = [ 'mimeType' => $mime ] + $this->optParams;
+        $params = ['mimeType' => $mime] + $this->optParams;
         return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'/export?'.http_build_query($params);
     }
 
