@@ -29,7 +29,26 @@ $client->refreshToken([refresh_token]);
 $client->setApplicationName('My Google Drive App');
 
 $service = new \Google_Service_Drive($client);
+
+// variant 1
 $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service, 'My_App_Root');
+
+// variant 2: with extra options and query parameters
+$adapter2 = new \Masbug\Flysystem\GoogleDriveAdapter(
+    $service,
+    'My_App_Root',
+    [
+        'useDisplayPaths' => true, /* this is the default */
+
+        /* These are global parameters sent to server along with per API parameters. Please see https://developers.google.com/drive/api/v3/query-parameters for more info. */
+        'parameters' => [
+            /* This example tells the remote server to perform quota checks per unique user id. Otherwise the quota would be per client IP. */
+            'quotaUser' => (string)$some_unique_per_user_id
+        ]
+    ]
+);
+
+
 $fs = new \League\Flysystem\Filesystem($adapter, ['visibility' => AdapterInterface::VISIBILITY_PRIVATE]);
 ```
 ```php
