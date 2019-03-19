@@ -1630,6 +1630,10 @@ class GoogleDriveAdapter extends AbstractAdapter
 
         if(empty($this->cachedPaths[$displayPath]))
             throw new FileNotFoundException($displayPath);
+
+        if($returnFirstItem && is_array($this->cachedPaths[$displayPath]))
+            return $this->cachedPaths[$displayPath][0];
+
         return $this->cachedPaths[$displayPath];
     }
 
