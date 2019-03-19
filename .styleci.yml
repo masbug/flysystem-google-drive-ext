@@ -9,6 +9,7 @@ disabled:
   - elseif
   - length_ordered_imports
   - not_operator_with_successor_space
+  - no_blank_lines_after_throw
   - no_unneeded_control_parentheses
   - phpdoc_summary
   - single_class_element_per_statement
