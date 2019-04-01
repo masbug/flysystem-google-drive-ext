@@ -38,14 +38,14 @@ class GoogleDriveAdapter extends AbstractAdapter
      *
      * @var string
      */
-    const FETCHFIELDS_LIST = 'files(id,mimeType,modifiedTime,name,parents,permissions,size,webContentLink),nextPageToken';
+    const FETCHFIELDS_LIST = 'files(id,mimeType,createdTime,modifiedTime,name,parents,permissions,size,webContentLink),nextPageToken';
 
     /**
      * Fetch fields setting for get
      *
      * @var string
      */
-    const FETCHFIELDS_GET = 'id,name,mimeType,modifiedTime,parents,permissions,size,webContentLink,webViewLink';
+    const FETCHFIELDS_GET = 'id,name,mimeType,createdTime,modifiedTime,parents,permissions,size,webContentLink,webViewLink';
 
     /**
      * MIME tyoe of directory
@@ -222,19 +222,34 @@ class GoogleDriveAdapter extends AbstractAdapter
         $updating = null;
         if($this->useDisplayPaths) {
             try {
-                $path = $this->toVirtualPath($path, true, true);
+                $virtual_path = $this->toVirtualPath($path, true, false);
                 $updating = true; // destination exists
             } catch(FileNotFoundException $e) {
                 $updating = false;
                 list($parentDir, $fileName) = $this->splitPath($path, false);
-                $path = $this->toSingleVirtualPath($parentDir, false, true, true, true);
-                if($path === '')
-                    $path = $fileName;
+                $virtual_path = $this->toSingleVirtualPath($parentDir, false, true, true, true);
+                if($virtual_path === '')
+                    $virtual_path = $fileName;
                 else
-                    $path .= '/'.$fileName;
+                    $virtual_path .= '/'.$fileName;
+            }
+            if($updating && is_array($virtual_path)) {
+                // multiple destinations with the same display path -> remove all but the first created & the first gets replaced
+                if(count($virtual_path) > 1) {
+                    // delete all but first
+                    $this->delete_by_id(
+                        array_map(
+                            function ($p) {
+                                return $this->splitPath($p, false)[1];
+                            },
+                            array_slice($virtual_path, 1)
+                        )
+                    );
+                }
+                $virtual_path = $virtual_path[0];
             }
         }
-        return $this->upload($path, $contents, $config, $updating);
+        return $this->upload($virtual_path, $contents, $config, $updating);
     }
 
     /**
@@ -365,6 +380,30 @@ class GoogleDriveAdapter extends AbstractAdapter
     }
 
     /**
+     * @param string[]|string $ids
+     * @return bool
+     */
+    protected function delete_by_id($ids)
+    {
+        $deleted = false;
+        if(!is_array($ids))
+            $ids = [$ids];
+        foreach($ids as $id) {
+            if($id !== '' && ($file = $this->getFileObject($id))) {
+                if(($parents = $file->getParents())) {
+                    $file = new Google_Service_Drive_DriveFile();
+                    $file->setTrashed(true);
+                    if($this->service->files->update($id, $file, $this->optParams)) {
+                        $this->uncacheId($id);
+                        $deleted = true;
+                    }
+                }
+            }
+        }
+        return $deleted;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function delete($path)
@@ -375,20 +414,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         $deleted = false;
         if($this->useDisplayPaths) {
             $ids = $this->toVirtualPath($path, false);
-            if(!is_array($path))
-                $ids = [$ids];
-            foreach($ids as $id) {
-                if($id !== '' && ($file = $this->getFileObject($id))) {
-                    if(($parents = $file->getParents())) {
-                        $file = new Google_Service_Drive_DriveFile();
-                        $file->setTrashed(true);
-                        if($this->service->files->update($id, $file, $this->optParams)) {
-                            $this->uncacheId($id);
-                            $deleted = true;
-                        }
-                    }
-                }
-            }
+            $deleted = $this->delete_by_id($ids);
         } else {
             if(($file = $this->getFileObject($path))) {
                 list($parentId, $id) = $this->splitPath($path);
@@ -1552,7 +1578,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function makeFullVirtualPath($displayPath, $returnFirstItem = false)
     {
-        $paths = [''];
+        $paths = ['' => null];
 
         $tmp = '';
         $tokens = explode('/', trim($displayPath, '/'));
@@ -1566,11 +1592,11 @@ class GoogleDriveAdapter extends AbstractAdapter
                 throw new FileNotFoundException($displayPath);
             if(is_array($this->cachedPaths[$tmp])) {
                 $new_paths = [];
-                foreach($paths as $path) {
+                foreach($paths as $path => $obj) {
                     $parentId = $path === '' ? '' : basename($path);
                     foreach($this->cachedPaths[$tmp] as $id) {
                         if($parentId === '' || (!empty($this->cacheFileObjects[$id]->parents) && in_array($parentId, $this->cacheFileObjects[$id]->parents))) {
-                            $new_paths[] = $path.'/'.$id;
+                            $new_paths[$path.'/'.$id] = $this->cacheFileObjects[$id];
                         }
                     }
                 }
@@ -1578,19 +1604,43 @@ class GoogleDriveAdapter extends AbstractAdapter
             } else {
                 $id = $this->cachedPaths[$tmp];
                 $new_paths = [];
-                foreach($paths as $path) {
+                foreach($paths as $path => $obj) {
                     $parentId = $path === '' ? '' : basename($path);
                     if($parentId === '' || (!empty($this->cacheFileObjects[$id]->parents) && in_array($parentId, $this->cacheFileObjects[$id]->parents))) {
-                        $new_paths[] = $path.'/'.$id;
+                        $new_paths[$path.'/'.$id] = $this->cacheFileObjects[$id];
                     }
                 }
                 $paths = $new_paths;
             }
         }
+
         $count = count($paths);
         if($count === 0)
             throw new FileNotFoundException($displayPath);
-        return (!$returnFirstItem && count($paths)) > 1 ? $paths : $paths[0];
+
+        if(count($paths) > 1) {
+            // sort oldest to newest
+            uasort($paths, function ($a, $b) {
+                $t1 = strtotime($a->getCreatedTime());
+                $t2 = strtotime($b->getCreatedTime());
+                if($t1 < $t2)
+                    return -1;
+                if($t1 > $t2)
+                    return 1;
+                return 0;
+            });
+
+            if(!$returnFirstItem)
+                return array_keys($paths);
+        }
+        return array_keys($paths)[0];
+    }
+
+    protected function returnSingle($item, $returnFirstItem)
+    {
+        if($returnFirstItem && is_array($item))
+            return $item[0];
+        return $item;
     }
 
     /**
@@ -1617,7 +1667,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             if(strcmp($pathMatch, $displayPath) === 0) {
                 if($makeFullVirtualPath)
                     return $this->makeFullVirtualPath($displayPath, $returnFirstItem);
-                return $itemId;
+                return $this->returnSingle($itemId, $returnFirstItem);
             }
             $i = array_search(strlen($pathMatch), $indices) + 1;
         }
@@ -1631,10 +1681,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         if(empty($this->cachedPaths[$displayPath]))
             throw new FileNotFoundException($displayPath);
 
-        if($returnFirstItem && is_array($this->cachedPaths[$displayPath]))
-            return $this->cachedPaths[$displayPath][0];
-
-        return $this->cachedPaths[$displayPath];
+        return $this->returnSingle($this->cachedPaths[$displayPath], $returnFirstItem);
     }
 
     /**
