@@ -48,6 +48,14 @@ $adapter2 = new \Masbug\Flysystem\GoogleDriveAdapter(
     ]
 );
 
+// variant 3: connect to team drive
+$adapter3 = new \Masbug\Flysystem\GoogleDriveAdapter(
+    $service,
+    'My_App_Root',
+    [
+        'teamDriveId' => '0GF9IioKDqJsRGk9PVA'
+    ]
+);
 
 $fs = new \League\Flysystem\Filesystem($adapter, ['visibility' => AdapterInterface::VISIBILITY_PRIVATE]);
 ```

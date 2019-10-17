@@ -86,6 +86,8 @@ class GoogleDriveAdapter extends AbstractAdapter
 
         'parameters' => [],
 
+        'teamDriveId' => null,
+
         'sanitize_chars' => [
             // sanitize filename
             // file system reserved https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words
@@ -206,32 +208,76 @@ class GoogleDriveAdapter extends AbstractAdapter
         $this->useHasDir = $this->options['useHasDir'];
         $this->publishPermission = $this->options['publishPermission'];
         $this->useDisplayPaths = $this->options['useDisplayPaths'];
-        $this->optParams = $this->options['parameters'];
+        $this->optParams = $this->cleanOptParameters($this->options['parameters']);
 
         if($root !== null) {
             $root = trim($root, '/');
             if($root === '')
                 $root = null;
         }
-        if(!$this->useDisplayPaths || $root === null) {
-            if($root === null)
-                $root = 'root';
-            $this->root = $root;
-            $this->setPathPrefix('');
+
+        if (isset($this->options['teamDriveId'])) {
+            $this->root = null;
+            $this->setTeamDriveId($this->options['teamDriveId']);
+            if($this->useDisplayPaths && $root !== null) {
+                // get real root id
+                $this->root = $this->toSingleVirtualPath($root, false, true, true, true);
+
+                // reset cache
+                $this->rootId = $this->root;
+                $this->cachedPaths = [];
+                $this->requestedIds = [];
+                $this->cacheFileObjects = [];
+                $this->cacheHasDirs = [];
+            }
         } else {
-            $this->root = 'root';
-            $this->setPathPrefix('');
+            if(!$this->useDisplayPaths || $root === null) {
+                if($root === null)
+                    $root = 'root';
+                $this->root = $root;
+                $this->setPathPrefix('');
+            } else {
+                $this->root = 'root';
+                $this->setPathPrefix('');
 
-            // get real root id
-            $this->root = $this->toSingleVirtualPath($root, false, true, true, true);
+                // get real root id
+                $this->root = $this->toSingleVirtualPath($root, false, true, true, true);
 
-            // reset cache
-            $this->rootId = $this->root;
-            $this->cachedPaths = [];
-            $this->requestedIds = [];
-            $this->cacheFileObjects = [];
-            $this->cacheHasDirs = [];
+                // reset cache
+                $this->rootId = $this->root;
+                $this->cachedPaths = [];
+                $this->requestedIds = [];
+                $this->cacheFileObjects = [];
+                $this->cacheHasDirs = [];
+            }
         }
+    }
+
+    protected function cleanOptParameters($parameters)
+    {
+        $operations = ['files.copy', 'files.create', 'files.delete',
+            'files.trash', 'files.get', 'files.list', 'files.update',
+            'files.watch'];
+        $clean = [];
+
+        foreach ($operations as $operation) {
+            $clean[$operation] = [];
+            if (isset($parameters[$operation])) {
+                $clean[$operation] = $parameters[$operation];
+            }
+        }
+
+        foreach ($parameters as $key => $value) {
+            if (in_array($key, $operations)) {
+                unset($parameters[$key]);
+            }
+        }
+
+        foreach ($operations as $operation) {
+            $clean[$operation] = array_merge_recursive($parameters, $clean[$operation]);
+        }
+
+        return $clean;
     }
 
     /**
@@ -333,7 +379,7 @@ class GoogleDriveAdapter extends AbstractAdapter
                 $opts['removeParents'] = $oldParent;
         }
 
-        $updatedFile = $this->service->files->update($fileId, $file, $opts + $this->optParams);
+        $updatedFile = $this->service->files->update($fileId, $file, $this->applyDefaultParams($opts, 'files.update'));
 
         if($updatedFile) {
             $id = $updatedFile->getId();
@@ -376,9 +422,9 @@ class GoogleDriveAdapter extends AbstractAdapter
             $newParentId
         ]);
 
-        $newFile = $this->service->files->copy($srcId, $file, [
-            'fields' => self::FETCHFIELDS_GET
-        ] + $this->optParams);
+        $newFile = $this->service->files->copy($srcId, $file, $this->applyDefaultParams([
+                'fields' => self::FETCHFIELDS_GET
+            ], 'files.copy'));
 
         if($newFile instanceof Google_Service_Drive_DriveFile) {
             $id = $newFile->getId();
@@ -413,7 +459,7 @@ class GoogleDriveAdapter extends AbstractAdapter
                 if(($parents = $file->getParents())) {
                     $file = new Google_Service_Drive_DriveFile();
                     $file->setTrashed(true);
-                    if($this->service->files->update($id, $file, $this->optParams)) {
+                    if($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
                         $this->uncacheId($id);
                         $deleted = true;
                     }
@@ -446,7 +492,7 @@ class GoogleDriveAdapter extends AbstractAdapter
                     } else {
                         $file->setTrashed(true);
                     }
-                    if($this->service->files->update($id, $file, $opts + $this->optParams)) {
+                    if($this->service->files->update($id, $file, $this->applyDefaultParams($opts, 'files.update'))) {
                         $this->uncacheId($id);
                         $deleted = true;
                     }
@@ -527,7 +573,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             list(, $fileId) = $this->splitPath($path);
         }
         /** @var RequestInterface $response */
-        if(($response = $this->service->files->get($fileId, ['alt' => 'media'] + $this->optParams))) {
+        if(($response = $this->service->files->get($fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
             return [
                 'contents' => (string)$response->getBody()
             ];
@@ -789,7 +835,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         $opts = [
             'pageSize' => 1,
             'orderBy'  => 'folder,modifiedTime,name',
-        ] + $this->optParams;
+        ];
 
         $paths = [];
         $client->setUseBatch(true);
@@ -798,7 +844,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         foreach($targets as $id) {
             $opts['q'] = sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $id, self::DIRMIME);
             /** @var RequestInterface $request */
-            $request = $gFiles->listFiles($opts);
+            $request = $gFiles->listFiles($this->applyDefaultParams($opts, 'files.list'));
             $key = ++$i;
             $batch->add($request, (string)$key);
             $paths['response-'.$key] = $id;
@@ -850,7 +896,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             }
             try {
                 $permission = new Google_Service_Drive_Permission($this->publishPermission);
-                if($this->service->permissions->create($file->getId(), $permission, $this->optParams)) {
+                if($this->service->permissions->create($file->getId(), $permission, $this->applyDefaultParams([], 'files.create'))) {
                     return true;
                 }
             } catch(Exception $e) {
@@ -875,7 +921,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             try {
                 foreach($permissions as $permission) {
                     if($permission->type === 'anyone' && $permission->role === 'reader') {
-                        $this->service->permissions->delete($file->getId(), $permission->getId(), $this->optParams);
+                        $this->service->permissions->delete($file->getId(), $permission->getId(), $this->applyDefaultParams([], 'files.trash'));
                     }
                 }
                 return true;
@@ -998,7 +1044,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             'orderBy'  => 'folder,modifiedTime,name',
             'spaces'   => $this->spaces,
             'q'        => sprintf('trashed = false and "%s" in parents', $itemId)
-        ] + $this->optParams;
+        ];
         if($query) {
             $parameters['q'] .= ' and ('.$query.')';
         }
@@ -1012,7 +1058,7 @@ class GoogleDriveAdapter extends AbstractAdapter
                 if($pageToken) {
                     $parameters['pageToken'] = $pageToken;
                 }
-                $fileObjs = $gFiles->listFiles($parameters);
+                $fileObjs = $gFiles->listFiles($this->applyDefaultParams($parameters, 'files.list'));
                 if($fileObjs instanceof Google_Service_Drive_FileList) {
                     foreach($fileObjs as $obj) {
                         $id = $obj->getId();
@@ -1079,11 +1125,11 @@ class GoogleDriveAdapter extends AbstractAdapter
 
             if($checkDir && $this->useHasDir) {
                 /** @var RequestInterface $request */
-                $request = $service->files->listFiles([
-                    'pageSize' => 1,
-                    'orderBy'  => 'folder,modifiedTime,name',
-                    'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
-                ] + $this->optParams);
+                $request = $service->files->listFiles($this->applyDefaultParams([
+                        'pageSize' => 1,
+                        'orderBy'  => 'folder,modifiedTime,name',
+                        'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
+                    ], 'files.list'));
 
                 $batch->add($request, 'hasdir');
             }
@@ -1122,7 +1168,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     protected function getDownloadUrl($file)
     {
         if(strpos($file->mimeType, 'application/vnd.google-apps') !== 0) {
-            $params = ['alt' => 'media'] + $this->optParams;
+            $params = $this->applyDefaultParams(['alt' => 'media'], 'files.get');
             return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'?'.http_build_query($params);
         }
 
@@ -1134,7 +1180,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         }
         $mime = rawurlencode($mime);
 
-        $params = ['mimeType' => $mime] + $this->optParams;
+        $params = $this->applyDefaultParams(['mimeType' => $mime], 'files.get');
         return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'/export?'.http_build_query($params);
     }
 
@@ -1155,9 +1201,9 @@ class GoogleDriveAdapter extends AbstractAdapter
         ]);
         $file->setMimeType(self::DIRMIME);
 
-        $obj = $this->service->files->create($file, [
-            'fields' => self::FETCHFIELDS_GET
-        ] + $this->optParams);
+        $obj = $this->service->files->create($file, $this->applyDefaultParams([
+                'fields' => self::FETCHFIELDS_GET
+            ], 'files.create'));
         $this->resetRequest($parentId);
 
         return ($obj instanceof Google_Service_Drive_DriveFile) ? $obj : null;
@@ -1208,12 +1254,12 @@ class GoogleDriveAdapter extends AbstractAdapter
                 'data'       => $stream,
                 'uploadType' => 'media',
                 'fields'     => self::FETCHFIELDS_GET
-            ] + $this->optParams;
+            ];
 
             if(!$updating) {
-                $obj = $this->service->files->create($file, $params);
+                $obj = $this->service->files->create($file, $this->applyDefaultParams($params, 'files.create'));
             } else {
-                $obj = $this->service->files->update($srcFile->getId(), $file, $params);
+                $obj = $this->service->files->update($srcFile->getId(), $file, $this->applyDefaultParams($params, 'files.update'));
             }
         } else {
             // chunked upload
@@ -1221,15 +1267,15 @@ class GoogleDriveAdapter extends AbstractAdapter
 
             $params = [
                 'fields' => self::FETCHFIELDS_GET
-            ] + $this->optParams;
+            ];
 
             $client->setDefer(true);
             if(!$updating) {
                 /** @var RequestInterface $request */
-                $request = $this->service->files->create($file, $params);
+                $request = $this->service->files->create($file, $this->applyDefaultParams($params, 'files.create'));
             } else {
                 /** @var RequestInterface $request */
-                $request = $this->service->files->update($srcFile->getId(), $file, $params);
+                $request = $this->service->files->update($srcFile->getId(), $file, $this->applyDefaultParams($params, 'files.update'));
             }
 
             $media = new StreamableUpload($client, $request, $mime, $stream, true, self::MAX_CHUNK_SIZE);
@@ -1289,12 +1335,12 @@ class GoogleDriveAdapter extends AbstractAdapter
 
                 $opts = [
                     'fields' => self::FETCHFIELDS_GET
-                ] + $this->optParams;
+                ];
 
                 $count = 0;
                 if(!$this->rootId) {
                     /** @var RequestInterface $request */
-                    $request = $this->service->files->get($this->root, $opts);
+                    $request = $this->service->files->get($this->root, $this->applyDefaultParams($opts, 'files.get'));
                     $batch->add($request, 'rootdir');
                     $count++;
                 }
@@ -1311,11 +1357,11 @@ class GoogleDriveAdapter extends AbstractAdapter
 
                     if($checkDir) {
                         /** @var RequestInterface $request */
-                        $request = $service->files->listFiles([
-                            'pageSize' => 1,
-                            'orderBy'  => 'folder,modifiedTime,name',
-                            'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
-                        ] + $this->optParams);
+                        $request = $service->files->listFiles($this->applyDefaultParams([
+                                'pageSize' => 1,
+                                'orderBy'  => 'folder,modifiedTime,name',
+                                'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
+                            ], 'files.list'));
                         $batch->add($request, 'hasdir-'.$itemId);
                         $count++;
                     }
@@ -1821,5 +1867,63 @@ class GoogleDriveAdapter extends AbstractAdapter
         // fix for Flysystem bug on Windows
         $path = Util::normalizeDirname(dirname($path));
         return str_replace('\\', '/', $path);
+    }
+
+    protected function applyDefaultParams($params, $cmdName)
+    {
+        if (isset($this->optParams[$cmdName]) && is_array($this->optParams[$cmdName])) {
+            return array_replace($this->optParams[$cmdName], $params);
+        } else {
+            return $params;
+        }
+    }
+
+    /**
+     * Enables Team Drive support by changing default parameters
+     *
+     * @return void
+     *
+     * @see https://developers.google.com/drive/v3/reference/files
+     * @see \Google_Service_Drive_Resource_Files
+     */
+    public function enableTeamDriveSupport()
+    {
+        $this->optParams = array_merge_recursive(
+            array_fill_keys([
+                'files.copy', 'files.create', 'files.delete',
+                'files.trash', 'files.get', 'files.list', 'files.update',
+                'files.watch'
+            ], ['supportsTeamDrives' => true]),
+            $this->optParams
+        );
+    }
+
+    /**
+     * Selects Team Drive to operate by changing default parameters
+     *
+     * @return void
+     *
+     * @param   string   $teamDriveId   Team Drive id
+     * @param   string   $corpora       Corpora value for files.list
+     *
+     * @see https://developers.google.com/drive/v3/reference/files
+     * @see https://developers.google.com/drive/v3/reference/files/list
+     * @see \Google_Service_Drive_Resource_Files
+     */
+    public function setTeamDriveId($teamDriveId, $corpora = 'teamDrive')
+    {
+        $this->enableTeamDriveSupport();
+        $this->optParams = array_merge_recursive($this->optParams, [
+            'files.list' => [
+                'corpora' => $corpora,
+                'includeTeamDriveItems' => true,
+                'teamDriveId' => $teamDriveId
+            ]
+        ]);
+
+        if ($this->root === 'root' || $this->root === null) {
+            $this->setPathPrefix($teamDriveId);
+            $this->root = $teamDriveId;
+        }
     }
 }
