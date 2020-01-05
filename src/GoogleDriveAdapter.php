@@ -1810,9 +1810,6 @@ class GoogleDriveAdapter extends AbstractAdapter
             $filename
         );
 
-        // limit filename length to 255 bytes
-        $ext = pathinfo($filename, PATHINFO_EXTENSION);
-        $filename = mb_strcut(pathinfo($filename, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($filename)).($ext ? '.'.$ext : '');
         return $filename;
     }
 
