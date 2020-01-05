@@ -1804,11 +1804,13 @@ class GoogleDriveAdapter extends AbstractAdapter
 
     protected function sanitizeFilename($filename)
     {
-        $filename = str_replace(
-            $this->options['sanitize_chars'],
-            $this->options['sanitize_replacement_char'],
-            $filename
-        );
+        if (!empty($this->options['sanitize_chars'])) {
+            $filename = str_replace(
+                $this->options['sanitize_chars'],
+                $this->options['sanitize_replacement_char'],
+                $filename
+            );
+        }
 
         return $filename;
     }
