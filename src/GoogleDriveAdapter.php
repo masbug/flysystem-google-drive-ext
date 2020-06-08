@@ -1055,7 +1055,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      *
      * @return Google_Service_Drive_DriveFile|null
      */
-    protected function getFileObject($path, $checkDir = false)
+    public function getFileObject($path, $checkDir = false)
     {
         list(, $itemId) = $this->splitPath($path);
         if(isset($this->cacheFileObjects[$itemId])) {
