@@ -1,11 +1,13 @@
 <?php
 
-class GoogleDriveTests extends PHPUnit_Framework_TestCase
+use PHPUnit\Framework\TestCase;
+
+class GoogleDriveAdapterTests extends TestCase
 {
-  // TBD
+    // TBD
 
     public function testTrueIsTrue()
     {
-    $this->assertTrue(true);
+        $this->assertTrue(true);
     }
 }
