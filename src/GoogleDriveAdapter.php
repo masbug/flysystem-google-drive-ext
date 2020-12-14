@@ -240,6 +240,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     public function write($path, $contents, Config $config)
     {
         $updating = null;
+        
         if($this->useDisplayPaths) {
             try {
                 $virtual_path = $this->toVirtualPath($path, true, false);
@@ -268,7 +269,10 @@ class GoogleDriveAdapter extends AbstractAdapter
                 }
                 $virtual_path = $virtual_path[0];
             }
+        } else {
+            $virtual_path = $path;
         }
+        
         return $this->upload($virtual_path, $contents, $config, $updating);
     }
 
