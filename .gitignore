@@ -5,3 +5,4 @@ composer.lock
 composer.phar
 build
 vendor
+.phpunit.result.cache
