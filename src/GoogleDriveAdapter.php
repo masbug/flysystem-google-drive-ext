@@ -1822,15 +1822,14 @@ class GoogleDriveAdapter extends AbstractAdapter
 
     protected function sanitizeFilename($filename)
     {
-        $filename = str_replace(
-            $this->options['sanitize_chars'],
-            $this->options['sanitize_replacement_char'],
-            $filename
-        );
+        if (!empty($this->options['sanitize_chars'])) {
+            $filename = str_replace(
+                $this->options['sanitize_chars'],
+                $this->options['sanitize_replacement_char'],
+                $filename
+            );
+        }
 
-        // limit filename length to 255 bytes
-        $ext = pathinfo($filename, PATHINFO_EXTENSION);
-        $filename = mb_strcut(pathinfo($filename, PATHINFO_FILENAME), 0, 255 - ($ext ? strlen($ext) + 1 : 0), mb_detect_encoding($filename)).($ext ? '.'.$ext : '');
         return $filename;
     }
 
