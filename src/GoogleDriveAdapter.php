@@ -477,6 +477,20 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function createDir($dirname, Config $config, $internalCall = false)
     {
+        try {
+            $meta = $this->getMetadata($dirname);
+        } catch (FileNotFoundException $e) {
+            $meta = false;
+        }
+
+        if ($meta !== false) {
+            return [
+                'path'      => $meta['path'],
+                'filename'  => $meta['filename'],
+                'extension' => $meta['extension']
+            ];
+        }
+
         list($pdir, $name) = $this->splitPath($dirname, false);
         if($this->useDisplayPaths) {
             if($pdir !== $this->root) {
