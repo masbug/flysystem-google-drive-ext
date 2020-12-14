@@ -286,14 +286,14 @@ class GoogleDriveAdapter extends AbstractAdapter
     public function write($path, $contents, Config $config)
     {
         $updating = null;
-        
+
         if($this->useDisplayPaths) {
             try {
                 $virtual_path = $this->toVirtualPath($path, true, false);
                 $updating = true; // destination exists
             } catch(FileNotFoundException $e) {
                 $updating = false;
-                list($parentDir, $fileName) = $this->splitPath($path, false);
+                [$parentDir, $fileName] = $this->splitPath($path, false);
                 $virtual_path = $this->toSingleVirtualPath($parentDir, false, true, true, true);
                 if($virtual_path === '')
                     $virtual_path = $fileName;
@@ -318,7 +318,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         } else {
             $virtual_path = $path;
         }
-        
+
         return $this->upload($virtual_path, $contents, $config, $updating);
     }
 
@@ -364,12 +364,12 @@ class GoogleDriveAdapter extends AbstractAdapter
             if($toPath === '')
                 $toPath = $this->root;
 
-            list($oldParent, $fileId) = $this->splitPath($path);
+            [$oldParent, $fileId] = $this->splitPath($path);
             $newParent = $toPath;
             $newName = basename($newpath);
         } else {
-            list($oldParent, $fileId) = $this->splitPath($path);
-            list($newParent, $newName) = $this->splitPath($newpath);
+            [$oldParent, $fileId] = $this->splitPath($path);
+            [$newParent, $newName] = $this->splitPath($newpath);
         }
 
         $file = new Google_Service_Drive_DriveFile();
@@ -416,8 +416,8 @@ class GoogleDriveAdapter extends AbstractAdapter
             $newParentId = $toPath;
             $fileName = basename($newpath);
         } else {
-            list(, $srcId) = $this->splitPath($path);
-            list($newParentId, $fileName) = $this->splitPath($newpath);
+            [, $srcId] = $this->splitPath($path);
+            [$newParentId, $fileName] = $this->splitPath($newpath);
         }
 
         $file = new Google_Service_Drive_DriveFile();
@@ -427,8 +427,8 @@ class GoogleDriveAdapter extends AbstractAdapter
         ]);
 
         $newFile = $this->service->files->copy($srcId, $file, $this->applyDefaultParams([
-                'fields' => self::FETCHFIELDS_GET
-            ], 'files.copy'));
+            'fields' => self::FETCHFIELDS_GET
+        ], 'files.copy'));
 
         if($newFile instanceof Google_Service_Drive_DriveFile) {
             $id = $newFile->getId();
@@ -487,7 +487,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             $deleted = $this->delete_by_id($ids);
         } else {
             if(($file = $this->getFileObject($path))) {
-                list($parentId, $id) = $this->splitPath($path);
+                [$parentId, $id] = $this->splitPath($path);
                 if(($parents = $file->getParents())) {
                     $file = new Google_Service_Drive_DriveFile();
                     $opts = [];
@@ -537,7 +537,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             ];
         }
 
-        list($pdir, $name) = $this->splitPath($dirname, false);
+        [$pdir, $name] = $this->splitPath($dirname, false);
         if($this->useDisplayPaths) {
             if($pdir !== $this->root) {
                 $pdir = $this->toSingleVirtualPath($pdir, false, false, true, true); // recursion!
@@ -588,7 +588,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         if($this->useDisplayPaths) {
             $fileId = $this->toVirtualPath($path, false, true);
         } else {
-            list(, $fileId) = $this->splitPath($path);
+            [, $fileId] = $this->splitPath($path);
         }
         /** @var RequestInterface $response */
         if(($response = $this->service->files->get($fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
@@ -1052,7 +1052,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function getItems($dirname, $recursive = false, $maxResults = 0, $query = '')
     {
-        list(, $itemId) = $this->splitPath($dirname);
+        [, $itemId] = $this->splitPath($dirname);
 
         $maxResults = min($maxResults, 1000);
         $results = [];
@@ -1121,7 +1121,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function getFileObject($path, $checkDir = false)
     {
-        list(, $itemId) = $this->splitPath($path);
+        [, $itemId] = $this->splitPath($path);
         if(isset($this->cacheFileObjects[$itemId])) {
             return $this->cacheFileObjects[$itemId];
         }
@@ -1144,16 +1144,16 @@ class GoogleDriveAdapter extends AbstractAdapter
             if($checkDir && $this->useHasDir) {
                 /** @var RequestInterface $request */
                 $request = $service->files->listFiles($this->applyDefaultParams([
-                        'pageSize' => 1,
-                        'orderBy'  => 'folder,modifiedTime,name',
-                        'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
-                    ], 'files.list'));
+                    'pageSize' => 1,
+                    'orderBy'  => 'folder,modifiedTime,name',
+                    'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
+                ], 'files.list'));
 
                 $batch->add($request, 'hasdir');
             }
             $results = array_values($batch->execute());
 
-            list($fileObj, $hasdir) = array_pad($results, 2, null);
+            [$fileObj, $hasdir] = array_pad($results, 2, null);
         } finally {
             $client->setUseBatch(false);
         }
@@ -1220,8 +1220,8 @@ class GoogleDriveAdapter extends AbstractAdapter
         $file->setMimeType(self::DIRMIME);
 
         $obj = $this->service->files->create($file, $this->applyDefaultParams([
-                'fields' => self::FETCHFIELDS_GET
-            ], 'files.create'));
+            'fields' => self::FETCHFIELDS_GET
+        ], 'files.create'));
         $this->resetRequest($parentId);
 
         return ($obj instanceof Google_Service_Drive_DriveFile) ? $obj : null;
@@ -1238,7 +1238,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function upload($path, $contents, Config $config, $updating = null)
     {
-        list($parentId, $fileName) = $this->splitPath($path);
+        [$parentId, $fileName] = $this->splitPath($path);
         $mime = $config->get('mimetype');
         $file = new Google_Service_Drive_DriveFile();
 
@@ -1376,10 +1376,10 @@ class GoogleDriveAdapter extends AbstractAdapter
                     if($checkDir) {
                         /** @var RequestInterface $request */
                         $request = $service->files->listFiles($this->applyDefaultParams([
-                                'pageSize' => 1,
-                                'orderBy'  => 'folder,modifiedTime,name',
-                                'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
-                            ], 'files.list'));
+                            'pageSize' => 1,
+                            'orderBy'  => 'folder,modifiedTime,name',
+                            'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
+                        ], 'files.list'));
                         $batch->add($request, 'hasdir-'.$itemId);
                         $count++;
                     }
@@ -1745,7 +1745,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         $indices = $this->indexString($displayPath, '/');
         $indices[] = strlen($displayPath);
 
-        list($itemId, $pathMatch) = $this->getCachedPathId($displayPath, $indices);
+        [$itemId, $pathMatch] = $this->getCachedPathId($displayPath, $indices);
         $i = 0;
         if($pathMatch !== null) {
             if(strcmp($pathMatch, $displayPath) === 0) {

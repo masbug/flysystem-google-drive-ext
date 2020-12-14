@@ -40,25 +40,25 @@ class StreamableUpload
     const UPLOAD_MULTIPART_TYPE = 'multipart';
     const UPLOAD_RESUMABLE_TYPE = 'resumable';
 
-    /** @var string $mimeType */
+    /** @var string */
     private $mimeType;
 
-    /** @var null|StreamInterface $data */
+    /** @var null|StreamInterface */
     private $data;
 
-    /** @var bool $resumable */
+    /** @var bool */
     private $resumable;
 
-    /** @var int $chunkSize */
+    /** @var int */
     private $chunkSize;
 
-    /** @var int|string $size */
+    /** @var int|string */
     private $size;
 
-    /** @var string $resumeUri */
+    /** @var string */
     private $resumeUri;
 
-    /** @var int $progress */
+    /** @var int */
     private $progress;
 
     /** @var Google_Client */
