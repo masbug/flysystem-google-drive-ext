@@ -19,7 +19,7 @@ composer require masbug/flysystem-google-drive-ext
 ```
 
 ## Usage
-#### Please follow [Google Docs](https://developers.google.com/drive/v3/web/enable-sdk) to obtain your `client ID, client secret & refresh token`
+#### Please follow [Google Docs](https://developers.google.com/drive/v3/web/enable-sdk) to obtain your `client ID, client secret & refresh token`.
 
 ```php
 $client = new \Google_Client();
@@ -67,6 +67,7 @@ $contents = $fs->listContents('', true /* is_recursive */);
 $contents = $fs->listContents('MyFolder', true /* is_recursive */);
 ```
 
+##### File upload
 ```php
 // Upload a file
 $local_filepath = '/home/user/downloads/file_to_upload.ext';
@@ -92,6 +93,7 @@ try {
 // NOTE: Remote folders are automatically created. 
 ```
 
+##### File download
 ```php
 // Download a file
 $remote_filepath = 'MyFolder/file.ext';
@@ -115,7 +117,25 @@ try {
 }
 ```
 
+##### How to get TeamDrive list and IDs
+```php
+$client = new \Google_Client();
+$client->setClientId([client_id]);
+$client->setClientSecret([client_secret]);
+$client->refreshToken([refresh_token]);
+$client->setApplicationName('My Google Drive App');
+
+$service = new \Google_Service_Drive($client);
+
+$drives = $service->teamdrives->listTeamdrives()->getTeamDrives();
+foreach ($drives as $drive) {
+    echo 'TeamDrive: ' . $drive->name . PHP_EOL;
+    echo 'ID: ' . $drive->id . PHP_EOL;
+}
+
+```
 ## Limitations
+
 Using display paths as identifiers for folders and files requires them to be unique. Unfortunately Google Drive allows users to create files and folders with same (displayed) names. In such cases when unique path cannot be determined this adapter chooses the oldest (first) instance.
 In case the newer duplicate is a folder and user puts a unique file or folder inside the adapter will be able to reach it properly (because full path is unique).
 
@@ -125,3 +145,5 @@ Concurrent use of same Google Drive might lead to unexpected problems due to hea
 This adapter is based on wonderful [flysystem-google-drive](https://github.com/nao-pon/flysystem-google-drive) by Naoki Sawada.
 
 It also contains an adaptation of [Google_Http_MediaFileUpload](https://github.com/google/google-api-php-client/blob/master/src/Google/Http/MediaFileUpload.php) by Google. I've added support for resumable uploads directly from streams (avoiding copying data to memory). 
+
+TeamDrive support was implemented by Maximilian Ruta - [Deltachaos](https://github.com/Deltachaos).
