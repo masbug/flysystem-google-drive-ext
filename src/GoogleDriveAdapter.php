@@ -626,9 +626,16 @@ class GoogleDriveAdapter extends AbstractAdapter
                 $dlurl = $this->getDownloadUrl($file);
                 $client = $this->service->getClient();
                 /** @var array|string|object $token */
-                $token = $client->getAccessToken();
+                if($client->isUsingApplicationDefaultCredentials()) {
+                    $token = $client->fetchAccessTokenWithAssertion();
+                } else {
+                    $token = $client->getAccessToken();
+                }
                 $access_token = '';
                 if(is_array($token)) {
+                    if(empty($token['access_token']) && !empty($token['refresh_token'])) {
+                        $token = $client->fetchAccessTokenWithRefreshToken();
+                    }
                     $access_token = $token['access_token'];
                 } else {
                     if(($token = @json_decode($token))) {
@@ -1009,7 +1016,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     {
         $id = $object->getId();
         $path_parts = $this->splitFileExtension($object->getName());
-        $result = [];
+        $result = ['id'=>$id];
         $result['type'] = $object->mimeType === self::DIRMIME ? 'dir' : 'file';
 
         if($this->useDisplayPaths) {
