@@ -19,10 +19,10 @@
         }
     ],
     "require": {
-        "php": "^7.2",
+        "php": "^7.2 | ^8.0",
         "ext-mbstring": "*",
         "guzzlehttp/guzzle": "^6.3 | ^7.0",
-        "league/flysystem": "^1.0",
+        "league/flysystem": "^1.0 | ^2.0",
         "google/apiclient": "^2.2"
     },
     "require-dev": {
