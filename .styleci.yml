@@ -2,7 +2,6 @@ preset: laravel
 
 disabled:
   - blank_line_before_return
-  - braces
   - cast_spaces
   - elseif
   - not_operator_with_successor_space
