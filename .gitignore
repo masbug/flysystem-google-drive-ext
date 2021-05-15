@@ -3,6 +3,7 @@
 .project
 composer.lock
 composer.phar
+google-drive-service-account.json
 build
 vendor
 .phpunit.result.cache
