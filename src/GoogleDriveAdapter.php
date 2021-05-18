@@ -225,10 +225,7 @@ class GoogleDriveAdapter extends AbstractAdapter
 
                 // reset cache
                 $this->rootId = $this->root;
-                $this->cachedPaths = [];
-                $this->requestedIds = [];
-                $this->cacheFileObjects = [];
-                $this->cacheHasDirs = [];
+                $this->clearCache();
             }
         } else {
             if(!$this->useDisplayPaths || $root === null) {
@@ -245,13 +242,23 @@ class GoogleDriveAdapter extends AbstractAdapter
 
                 // reset cache
                 $this->rootId = $this->root;
-                $this->cachedPaths = [];
-                $this->requestedIds = [];
-                $this->cacheFileObjects = [];
-                $this->cacheHasDirs = [];
+                $this->clearCache();
             }
         }
     }
+    
+    /**
+     * Allow to forcefully clear the cache to enable long running process 
+     *
+     * @return void
+     */
+    public function clearCache()
+    {   
+        $this->cachedPaths = [];
+        $this->requestedIds = [];
+        $this->cacheFileObjects = [];
+        $this->cacheHasDirs = []; 
+    }   
 
     protected function cleanOptParameters($parameters)
     {
