@@ -56,7 +56,7 @@ $adapter3 = new \Masbug\Flysystem\GoogleDriveAdapter(
     ]
 );
 
-$fs = new \League\Flysystem\Filesystem($adapter, ['visibility' => AdapterInterface::VISIBILITY_PRIVATE]);
+$fs = new \League\Flysystem\Filesystem($adapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]));
 ```
 ```php
 // List selected root folder contents
@@ -72,12 +72,12 @@ $contents = $fs->listContents('MyFolder', true /* is_recursive */);
 $local_filepath = '/home/user/downloads/file_to_upload.ext';
 $remote_filepath = 'MyFolder/file.ext';
 
-$localAdapter = new League\Flysystem\Adapter\Local();
-$localfs = new \League\Flysystem\Filesystem($localAdapter, ['visibility' => AdapterInterface::VISIBILITY_PRIVATE]);
+$localAdapter = new League\Flysystem\Local\LocalFilesystemAdapter();
+$localfs = new \League\Flysystem\Filesystem($localAdapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]));
 
 try {
     $time = Carbon::now();
-    $ret = $fs->putStream($remote_filepath, $localfs->readStream($local_filepath));
+    $ret = $fs->writeStream($remote_filepath, $localfs->readStream($local_filepath));
     if($ret) {
         $speed = filesize($local_filepath) / (float)$time->diffInSeconds();
         echo 'Elapsed time: '.$time->diffForHumans(null, true);
@@ -85,7 +85,7 @@ try {
     } else {
         echo 'Upload FAILED!';
     }
-} catch(\League\Flysystem\FileNotFoundException $e) {
+} catch(\League\Flysystem\UnableToReadFile $e) {
     echo 'Source doesn\'t exist!';
 }
 
@@ -98,12 +98,12 @@ try {
 $remote_filepath = 'MyFolder/file.ext';
 $local_filepath = '/home/user/downloads/file.ext';
 
-$localAdapter = new League\Flysystem\Adapter\Local();
-$localfs = new \League\Flysystem\Filesystem($localAdapter, ['visibility' => AdapterInterface::VISIBILITY_PRIVATE]);
+$localAdapter = new League\Flysystem\Local\LocalFilesystemAdapter();
+$localfs = new \League\Flysystem\Filesystem($localAdapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE])));
 
 try {
     $time = Carbon::now();
-    $ret = $localfs->putStream($local_filepath, $fs->readStream($remote_filepath));
+    $ret = $localfs->writeStream($local_filepath, $fs->readStream($remote_filepath));
     if($ret) {
         $speed = filesize($local_filepath) / (float)$time->diffInSeconds();
         echo 'Elapsed time: '.$time->diffForHumans(null, true);
@@ -111,7 +111,7 @@ try {
     } else {
         echo 'Downloaded FAILED!';
     }
-} catch(\League\Flysystem\FileNotFoundException $e) {
+} catch(\League\Flysystem\UnableToReadFile $e) {
     echo 'Source doesn\'t exist!';
 }
 ```
