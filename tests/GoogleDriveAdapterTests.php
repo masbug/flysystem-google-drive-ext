@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Masbug\Flysystem;
 
 use League\Flysystem\AdapterTestUtilities\FilesystemAdapterTestCase;
+use League\Flysystem\Config;
 use League\Flysystem\FilesystemAdapter;
 
 class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
@@ -41,16 +42,31 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
             $client->setClientSecret($config['GOOGLE_DRIVE_CLIENT_SECRET']);
             $client->refreshToken($config['GOOGLE_DRIVE_REFRESH_TOKEN']);
             $service = new \Google_Service_Drive($client);
-            echo 'BEGIN: ';
             return new GoogleDriveAdapter($service,'tests/', $options);
         }catch(\Exception $e){
             self::markTestSkipped($e->getMessage());
         }
     }
 
+    /**
+     * @test
+     */
     public function fetching_unknown_mime_type_of_a_file(): void
     {
         $this->assertTrue(true); //This adapter always returns a mime-type.
+    }
+
+    /**
+     * @test
+     */
+    public function creating_zero_dir()
+    {
+        $this->runScenario(function () {
+            $adapter = $this->adapter();
+            $adapter->write('0/file.txt', 'contents', new Config());
+            $contents = $adapter->read('0/file.txt');
+            $this->assertEquals('contents', $contents);
+        });
     }
 
 }
