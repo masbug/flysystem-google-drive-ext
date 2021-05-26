@@ -11,6 +11,8 @@ build:
                         command: phpcs-run
                         use_website_config: true
             environment:
+                php:
+                    version: 7.4
                 node:
                     version: 6.0.0
 checks:
