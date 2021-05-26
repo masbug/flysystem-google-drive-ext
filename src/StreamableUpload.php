@@ -92,8 +92,7 @@ class StreamableUpload
         $data,
         $resumable = false,
         $chunkSize = false
-    )
-    {
+    ) {
         $this->client = $client;
         $this->request = $request;
         $this->mimeType = $mimeType;

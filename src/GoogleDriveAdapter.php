@@ -372,6 +372,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             throw UnableToWriteFile::atLocation($path, 'Not able to write the file');
         }
     }
+
     /**
      * {@inheritdoc}
      */
@@ -454,7 +455,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             return;
         }
 
-        throw UnableToCopyFile::fromLocationTo($path, $newpath, "Unable To Copy File");
+        throw UnableToCopyFile::fromLocationTo($path, $newpath, 'Unable To Copy File');
     }
 
     /**
@@ -505,7 +506,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function delete(string $location): void
     {
         if ($location === '' || $location === '/') {
-            throw UnableToDeleteDirectory::atLocation($location, "Unable to delete root");
+            throw UnableToDeleteDirectory::atLocation($location, 'Unable to delete root');
         } // do not allow deleting root...
 
         $path = $this->prefixer->prefixPath($location);
@@ -539,7 +540,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         if ($deleted) {
             $this->resetRequest('', true);
         } else {
-            throw UnableToDeleteFile::atLocation($path, "Unable to delete file");
+            throw UnableToDeleteFile::atLocation($path, 'Unable to delete file');
         }
     }
 
@@ -551,7 +552,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         try {
             $this->delete($dirname);
         } catch (Throwable $e) {
-            throw UnableToDeleteDirectory::atLocation($dirname, "Unable to delete directory");
+            throw UnableToDeleteDirectory::atLocation($dirname, 'Unable to delete directory');
         }
     }
 
@@ -575,7 +576,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if ($pdir !== $this->root) {
                 $pdir = $this->toSingleVirtualPath($pdir, false, false, true, true); // recursion!
                 if ($pdir === false) {
-                    throw UnableToCreateDirectory::atLocation($dirname, "Failed to create dir");
+                    throw UnableToCreateDirectory::atLocation($dirname, 'Failed to create dir');
                 }
             }
         }
@@ -589,7 +590,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             return;
         }
 
-        throw UnableToCreateDirectory::atLocation($dirname, "Failed to create dir");
+        throw UnableToCreateDirectory::atLocation($dirname, 'Failed to create dir');
     }
 
     /**
@@ -607,7 +608,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         if (($response = $this->service->files->get($fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
             return (string)$response->getBody();
         }
-        throw UnableToReadFile::fromLocation($path, '', "Unable To Read File");
+        throw UnableToReadFile::fromLocation($path, '', 'Unable To Read File');
     }
 
     /**
@@ -829,7 +830,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
             $result = ($visibility === Visibility::PUBLIC) ? $this->publish($path) : $this->unPublish($path);
         } catch (Throwable $e) {
-            throw UnableToSetVisibility::atLocation($path, "Error setting visibility", $e);
+            throw UnableToSetVisibility::atLocation($path, 'Error setting visibility', $e);
         }
         if (!$result) {
             $className = Visibility::class;
@@ -1580,9 +1581,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
                             if ($itemId !== $this->cachedPaths[$path]) {
                                 // convert to array
                                 $this->cachedPaths[$path] = [
-                                $this->cachedPaths[$path],
-                                $itemId
-                            ];
+                                    $this->cachedPaths[$path],
+                                    $itemId
+                                ];
 
                                 if (DEBUG_ME) {
                                     echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";
