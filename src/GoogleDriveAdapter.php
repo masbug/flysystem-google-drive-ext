@@ -1580,9 +1580,9 @@ class GoogleDriveAdapter extends AbstractAdapter
                             if ($itemId !== $this->cachedPaths[$path]) {
                                 // convert to array
                                 $this->cachedPaths[$path] = [
-                                $this->cachedPaths[$path],
-                                $itemId
-                            ];
+                                    $this->cachedPaths[$path],
+                                    $itemId
+                                ];
 
                                 if (DEBUG_ME) {
                                     echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";

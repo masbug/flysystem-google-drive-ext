@@ -1,8 +1,8 @@
 <?php
 namespace Masbug\Flysystem;
 
-use PHPUnit\Framework\TestCase;
 use League\Flysystem\Config;
+use PHPUnit\Framework\TestCase;
 use Throwable;
 
 class GoogleDriveAdapterTests extends TestCase
@@ -29,7 +29,7 @@ class GoogleDriveAdapterTests extends TestCase
 
     public function adapter()
     {
-        if ( ! static::$adapter instanceof GoogleDriveAdapter) {
+        if (!static::$adapter instanceof GoogleDriveAdapter) {
             static::$adapter = static::createFilesystemAdapter();
         }
 
@@ -66,7 +66,7 @@ class GoogleDriveAdapterTests extends TestCase
 
         /** @var StorageAttributes $item */
         foreach ($adapter->listContents('', false) as $item) {
-            if ($item['type'] ==  'dir') {
+            if ($item['type'] == 'dir') {
                 $adapter->deleteDir($item['display_path']);
             } else {
                 $adapter->delete($item['display_path']);
@@ -138,7 +138,7 @@ class GoogleDriveAdapterTests extends TestCase
         $this->assertTrue($adapter->has($destination));
         // copy of content
         $contents = $adapter->read($destination);
-        $this->assertEquals('content', is_array($contents)&&isset($contents['contents'])?$contents['contents']:'',"The content of file {$destination} is wrong");
+        $this->assertEquals('content', is_array($contents) && isset($contents['contents']) ? $contents['contents'] : '', "The content of file {$destination} is wrong");
         // copy of visibility
         $public = $adapter->getVisibility($destination);
         $this->assertIsArray($public);
@@ -160,7 +160,7 @@ class GoogleDriveAdapterTests extends TestCase
         $adapter->write($file, 'content', new Config(['visibility' => 'public']));
         $this->assertTrue($adapter->has($file));
         // rename
-        $adapter->rename($file,$destination);
+        $adapter->rename($file, $destination);
         $this->assertTrue($adapter->has($destination));
         $this->assertFalse($adapter->has($file));
         // visibility
@@ -170,7 +170,7 @@ class GoogleDriveAdapterTests extends TestCase
         $this->assertEquals('public', $object['visibility']);
         // content
         $contents = $adapter->read($destination);
-        $this->assertEquals('content', is_array($contents)&&isset($contents['contents'])?$contents['contents']:'',"The content of file {$destination} is wrong");
+        $this->assertEquals('content', is_array($contents) && isset($contents['contents']) ? $contents['contents'] : '', "The content of file {$destination} is wrong");
     }
 
     /**
@@ -260,7 +260,7 @@ class GoogleDriveAdapterTests extends TestCase
         $adapter->write('file.txt', 'contents', new Config());
         $dirname = uniqid();
         $this->assertFalse($adapter->has($dirname));
-        $this->assertTrue($adapter->rename('file.txt', $dirname . '/file.txt'));
+        $this->assertTrue($adapter->rename('file.txt', $dirname.'/file.txt'));
     }
 
     /**
@@ -357,7 +357,6 @@ class GoogleDriveAdapterTests extends TestCase
         $this->assertEquals('private', $private['visibility']);
     }
 
-
     /**
      * @test
      */
@@ -416,27 +415,27 @@ class GoogleDriveAdapterTests extends TestCase
     public function testWritingReadingFilesWithSpecialPath()
     {
         $adapter = $this->adapter();
-        foreach([
-                "a path with square brackets in filename 1" => "some/file[name].txt",
-                "a path with square brackets in filename 2" => "some/file[0].txt",
-                "a path with square brackets in filename 3" => "some/file[10].txt",
-                "a path with square brackets in dirname 1" => "some[name]/file.txt",
-                "a path with square brackets in dirname 2" => "some[0]/file.txt",
-                "a path with square brackets in dirname 3" => "some[10]/file.txt",
-                "a path with curly brackets in filename 1" => "some/file{name}.txt",
-                "a path with curly brackets in filename 2" => "some/file{0}.txt",
-                "a path with curly brackets in filename 3" => "some/file{10}.txt",
-                "a path with curly brackets in dirname 1" => "some{name}/filename.txt",
-                "a path with curly brackets in dirname 2" => "some{0}/filename.txt",
-                "a path with curly brackets in dirname 3" => "some{10}/filename.txt",
-                "a path with space in dirname" => "some dir/filename.txt",
-                "a path with space in filename" => "somedir/file name.txt"
-            ] as $msg => $path){
+        foreach ([
+            'a path with square brackets in filename 1' => 'some/file[name].txt',
+            'a path with square brackets in filename 2' => 'some/file[0].txt',
+            'a path with square brackets in filename 3' => 'some/file[10].txt',
+            'a path with square brackets in dirname 1' => 'some[name]/file.txt',
+            'a path with square brackets in dirname 2' => 'some[0]/file.txt',
+            'a path with square brackets in dirname 3' => 'some[10]/file.txt',
+            'a path with curly brackets in filename 1' => 'some/file{name}.txt',
+            'a path with curly brackets in filename 2' => 'some/file{0}.txt',
+            'a path with curly brackets in filename 3' => 'some/file{10}.txt',
+            'a path with curly brackets in dirname 1' => 'some{name}/filename.txt',
+            'a path with curly brackets in dirname 2' => 'some{0}/filename.txt',
+            'a path with curly brackets in dirname 3' => 'some{10}/filename.txt',
+            'a path with space in dirname' => 'some dir/filename.txt',
+            'a path with space in filename' => 'somedir/file name.txt'
+        ] as $msg => $path) {
 
             $adapter->write($path, 'contents', new Config());
             $contents = $adapter->read($path);
 
-            $this->assertEquals('contents', isset($contents['contents'])?$contents['contents']:'', $msg);
+            $this->assertEquals('contents', isset($contents['contents']) ? $contents['contents'] : '', $msg);
         }
     }
 
@@ -459,7 +458,7 @@ class GoogleDriveAdapterTests extends TestCase
         $adapter = $this->adapter();
         $file = 'test.xlsx';
         $adapter->write($file, '', new Config());
-        $this->assertEquals('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',$adapter->getMimetype($file)['mimetype']);
+        $this->assertEquals('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $adapter->getMimetype($file)['mimetype']);
     }
 
     /**
