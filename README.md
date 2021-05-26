@@ -144,7 +144,7 @@ foreach ($drives as $drive) {
 ## Using with Laravel Framework
 
 ##### Update `.env` file with google keys
-Add the keys you created to your `.env` file and set `google` as your default cloud storage. You can copy the [`.env.example`](.env.example) file and fill in the blanks.
+Add the keys you created to your `.env` file and set `google` as your default cloud storage. You can copy the `.env.example` file and fill in the blanks.
 ```
 FILESYSTEM_CLOUD=google
 GOOGLE_DRIVE_CLIENT_ID=xxx.apps.googleusercontent.com
@@ -188,8 +188,7 @@ GOOGLE_DRIVE_FOLDER=
 
 ##### Add driver storage in a `ServiceProvider` on path `app/Providers/`
 Example:
-```
-<?php
+```php
 namespace App\Providers;
 
 class AppServiceProvider extends \Illuminate\Support\ServiceProvider{ // can be a custom ServiceProvider
