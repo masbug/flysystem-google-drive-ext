@@ -1,4 +1,5 @@
 <?php
+
 namespace Masbug\Flysystem;
 
 use League\Flysystem\Config;
@@ -431,7 +432,6 @@ class GoogleDriveAdapterTests extends TestCase
             'a path with space in dirname' => 'some dir/filename.txt',
             'a path with space in filename' => 'somedir/file name.txt'
         ] as $msg => $path) {
-
             $adapter->write($path, 'contents', new Config());
             $contents = $adapter->read($path);
 
