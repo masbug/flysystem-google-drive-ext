@@ -72,5 +72,4 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
             $this->assertEquals('contents', $contents);
         });
     }
-
 }
