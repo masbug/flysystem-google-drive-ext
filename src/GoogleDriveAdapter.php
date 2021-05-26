@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Masbug\Flysystem;
 
+use Exception;
 use Google_Service_Drive;
 use Google_Service_Drive_DriveFile;
 use Google_Service_Drive_FileList;
@@ -27,7 +28,6 @@ use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
 use Throwable;
-use Exception;
 
 define('DEBUG_ME', false);
 
@@ -229,16 +229,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $this->useDisplayPaths = $this->options['useDisplayPaths'];
         $this->optParams = $this->cleanOptParameters($this->options['parameters']);
 
-        if($root !== null) {
+        if ($root !== null) {
             $root = trim($root, '/');
-            if($root === '')
+            if ($root === '') {
                 $root = null;
+            }
         }
 
         if (isset($this->options['teamDriveId'])) {
             $this->root = null;
             $this->setTeamDriveId($this->options['teamDriveId']);
-            if($this->useDisplayPaths && $root !== null) {
+            if ($this->useDisplayPaths && $root !== null) {
                 // get real root id
                 $this->root = $this->toSingleVirtualPath($root, false, true, true, true);
 
@@ -247,9 +248,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 $this->clearCache();
             }
         } else {
-            if(!$this->useDisplayPaths || $root === null) {
-                if($root === null)
+            if (!$this->useDisplayPaths || $root === null) {
+                if ($root === null) {
                     $root = 'root';
+                }
                 $this->root = $root;
                 $this->setPathPrefix('');
             } else {
@@ -306,7 +308,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
         return $clean;
     }
 
-    private function setPathPrefix($prefix){
+    private function setPathPrefix($prefix)
+    {
         $this->prefixer = new PathPrefixer($prefix);
     }
 
@@ -319,7 +322,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $location = $this->prefixer->prefixPath($path);
             $this->toVirtualPath($location, true, true);
             return true;
-        } catch(UnableToReadFile $e) {
+        } catch (UnableToReadFile $e) {
             return false;
         }
     }
@@ -328,22 +331,23 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         $updating = null;
         $path = $this->prefixer->prefixPath($location);
-        if($this->useDisplayPaths) {
+        if ($this->useDisplayPaths) {
             try {
                 $virtual_path = $this->toVirtualPath($path, true, false);
                 $updating = true; // destination exists
-            } catch(UnableToReadFile $e) {
+            } catch (UnableToReadFile $e) {
                 $updating = false;
                 [$parentDir, $fileName] = $this->splitPath($path, false);
                 $virtual_path = $this->toSingleVirtualPath($parentDir, false, true, true, true);
-                if($virtual_path === '')
+                if ($virtual_path === '') {
                     $virtual_path = $fileName;
-                else
+                } else {
                     $virtual_path .= '/'.$fileName;
+                }
             }
-            if($updating && is_array($virtual_path)) {
+            if ($updating && is_array($virtual_path)) {
                 // multiple destinations with the same display path -> remove all but the first created & the first gets replaced
-                if(count($virtual_path) > 1) {
+                if (count($virtual_path) > 1) {
                     // delete all but first
                     $this->delete_by_id(
                         array_map(
@@ -360,10 +364,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $virtual_path = $path;
         }
 
-        try{
+        try {
             $result = $this->upload($virtual_path, $contents, $config, $updating);
-        } catch (Throwable $e){ }
-        if(!isset($result)||!$result) throw UnableToWriteFile::atLocation($path, 'Not able to write the file');
+        } catch (Throwable $e) {
+        }
+        if (!isset($result) || !$result) {
+            throw UnableToWriteFile::atLocation($path, 'Not able to write the file');
+        }
     }
     /**
      * {@inheritdoc}
@@ -388,16 +395,19 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         $path = $this->prefixer->prefixPath($location);
         $newpath = $this->prefixer->prefixPath($destination);
-        if($this->useDisplayPaths) {
+        if ($this->useDisplayPaths) {
             $srcId = $this->toVirtualPath($path, false, true);
             $newpathDir = self::dirname($newpath);
-            if($this->fileExists($newpathDir))
+            if ($this->fileExists($newpathDir)) {
                 $this->delete($newpath);
+            }
             $toPath = $this->toSingleVirtualPath($newpathDir, false, false, true, true);
-            if($toPath === false)
+            if ($toPath === false) {
                 throw UnableToCopyFile::fromLocationTo($path, $newpath);
-            if($toPath === '')
+            }
+            if ($toPath === '') {
                 $toPath = $this->root;
+            }
             $newParentId = $toPath;
             $fileName = basename($newpath);
         } else {
@@ -415,25 +425,27 @@ class GoogleDriveAdapter implements FilesystemAdapter
             'fields' => self::FETCHFIELDS_GET
         ], 'files.copy'));
 
-        if($newFile instanceof Google_Service_Drive_DriveFile) {
+        if ($newFile instanceof Google_Service_Drive_DriveFile) {
             $id = $newFile->getId();
             $this->cacheFileObjects[$id] = $newFile;
             $this->cacheObjects([$id => $newFile]);
-            if(isset($this->cacheHasDirs[$srcId]))
+            if (isset($this->cacheHasDirs[$srcId])) {
                 $this->cacheHasDirs[$id] = $this->cacheHasDirs[$srcId];
+            }
 
-            $srcFile=$this->cacheFileObjects[$srcId];
+            $srcFile = $this->cacheFileObjects[$srcId];
             $permissions = $srcFile->getPermissions();
             $visibility = Visibility::PRIVATE;
-            try{
-                foreach($permissions as $permission) {
-                    if($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
+            try {
+                foreach ($permissions as $permission) {
+                    if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
                         $visibility = Visibility::PUBLIC;
                         break;
                     }
                 }
-            } catch(Exception $e) { }
-            if($config->get('visibility') === Visibility::PUBLIC || $visibility === Visibility::PUBLIC) {
+            } catch (Exception $e) {
+            }
+            if ($config->get('visibility') === Visibility::PUBLIC || $visibility === Visibility::PUBLIC) {
                 $this->publish($id);
             } else {
                 $this->unPublish($id);
@@ -451,8 +463,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function move(string $source, string $destination, Config $config): void
     {
-        if(!$this->fileExists($source))
+        if (!$this->fileExists($source)) {
             throw UnableToMoveFile::fromLocationTo($source, $destination, new \Exception("File {$source} not exist."));
+        }
         try {
             $this->copy($source, $destination, $config);
             $this->delete($source);
@@ -468,14 +481,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
     protected function delete_by_id($ids)
     {
         $deleted = false;
-        if(!is_array($ids))
+        if (!is_array($ids)) {
             $ids = [$ids];
-        foreach($ids as $id) {
-            if($id !== '' && ($file = $this->getFileObject($id))) {
-                if(($parents = $file->getParents())) {
+        }
+        foreach ($ids as $id) {
+            if ($id !== '' && ($file = $this->getFileObject($id))) {
+                if (($parents = $file->getParents())) {
                     $file = new Google_Service_Drive_DriveFile();
                     $file->setTrashed(true);
-                    if($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
+                    if ($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
                         $this->uncacheId($id);
                         $deleted = true;
                     }
@@ -490,30 +504,31 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function delete(string $location): void
     {
-        if($location === '' || $location === '/')
-            throw UnableToDeleteDirectory::atLocation($location, "Unable to delete root"); // do not allow deleting root...
+        if ($location === '' || $location === '/') {
+            throw UnableToDeleteDirectory::atLocation($location, "Unable to delete root");
+        } // do not allow deleting root...
 
         $path = $this->prefixer->prefixPath($location);
         $deleted = false;
-        if($this->useDisplayPaths) {
-            try{
+        if ($this->useDisplayPaths) {
+            try {
                 $ids = $this->toVirtualPath($path, false);
                 $deleted = $this->delete_by_id($ids);
             } catch (Throwable $exception) {
                 $deleted = true;
             }
         } else {
-            if(($file = $this->getFileObject($path))) {
+            if (($file = $this->getFileObject($path))) {
                 [$parentId, $id] = $this->splitPath($path);
-                if(($parents = $file->getParents())) {
+                if (($parents = $file->getParents())) {
                     $file = new Google_Service_Drive_DriveFile();
                     $opts = [];
-                    if(count($parents) > 1) {
+                    if (count($parents) > 1) {
                         $opts['removeParents'] = $parentId;
                     } else {
                         $file->setTrashed(true);
                     }
-                    if($this->service->files->update($id, $file, $this->applyDefaultParams($opts, 'files.update'))) {
+                    if ($this->service->files->update($id, $file, $this->applyDefaultParams($opts, 'files.update'))) {
                         $this->uncacheId($id);
                         $deleted = true;
                     }
@@ -521,10 +536,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
         }
 
-        if($deleted)
+        if ($deleted) {
             $this->resetRequest('', true);
-        else
+        } else {
             throw UnableToDeleteFile::atLocation($path, "Unable to delete file");
+        }
     }
 
     /**
@@ -532,9 +548,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function deleteDirectory(string $dirname): void
     {
-        try{
+        try {
             $this->delete($dirname);
-        } catch (Throwable $e){
+        } catch (Throwable $e) {
             throw UnableToDeleteDirectory::atLocation($dirname, "Unable to delete directory");
         }
     }
@@ -555,16 +571,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
 
         [$pdir, $name] = $this->splitPath($dirname, false);
-        if($this->useDisplayPaths) {
-            if($pdir !== $this->root) {
+        if ($this->useDisplayPaths) {
+            if ($pdir !== $this->root) {
                 $pdir = $this->toSingleVirtualPath($pdir, false, false, true, true); // recursion!
-                if($pdir === false)
+                if ($pdir === false) {
                     throw UnableToCreateDirectory::atLocation($dirname, "Failed to create dir");
+                }
             }
         }
 
         $folder = $this->createDir($name, $pdir !== '' ? basename($pdir) : $pdir);
-        if($folder !== null) {
+        if ($folder !== null) {
             $itemId = $folder->getId();
             $this->cacheFileObjects[$itemId] = $folder;
             $this->cacheHasDirs[$itemId] = false;
@@ -581,13 +598,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function read(string $location): string
     {
         $path = $this->prefixer->prefixPath($location);
-        if($this->useDisplayPaths) {
+        if ($this->useDisplayPaths) {
             $fileId = $this->toVirtualPath($path, false, true);
         } else {
             [, $fileId] = $this->splitPath($path);
         }
         /** @var RequestInterface $response */
-        if(($response = $this->service->files->get($fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
+        if (($response = $this->service->files->get($fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
             return (string)$response->getBody();
         }
         throw UnableToReadFile::fromLocation($path, '', "Unable To Read File");
@@ -599,52 +616,54 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function readStream(string $location)
     {
         $path = $this->prefixer->prefixPath($location);
-        if($this->useDisplayPaths)
+        if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, false, true);
+        }
 
         $redirect = null;
-        if(func_num_args() > 1) {
+        if (func_num_args() > 1) {
             $redirect = func_get_arg(1);
         }
 
-        if(!$redirect) {
+        if (!$redirect) {
             $redirect = [
-                'cnt'     => 0,
-                'url'     => '',
-                'token'   => '',
+                'cnt' => 0,
+                'url' => '',
+                'token' => '',
                 'cookies' => []
             ];
-            if(($file = $this->getFileObject($path))) {
-                if($file->getMimeType() === self::DIRMIME)
+            if (($file = $this->getFileObject($path))) {
+                if ($file->getMimeType() === self::DIRMIME) {
                     throw new FileNotFoundException($path);
+                }
                 $dlurl = $this->getDownloadUrl($file);
                 $client = $this->service->getClient();
                 /** @var array|string|object $token */
-                if($client->isUsingApplicationDefaultCredentials()) {
+                if ($client->isUsingApplicationDefaultCredentials()) {
                     $token = $client->fetchAccessTokenWithAssertion();
                 } else {
                     $token = $client->getAccessToken();
                 }
                 $access_token = '';
-                if(is_array($token)) {
-                    if(empty($token['access_token']) && !empty($token['refresh_token'])) {
+                if (is_array($token)) {
+                    if (empty($token['access_token']) && !empty($token['refresh_token'])) {
                         $token = $client->fetchAccessTokenWithRefreshToken();
                     }
                     $access_token = $token['access_token'];
                 } else {
-                    if(($token = @json_decode($token))) {
+                    if (($token = @json_decode($token))) {
                         $access_token = $token->access_token;
                     }
                 }
                 $redirect = [
-                    'cnt'     => 0,
-                    'url'     => '',
-                    'token'   => $access_token,
+                    'cnt' => 0,
+                    'url' => '',
+                    'token' => $access_token,
                     'cookies' => []
                 ];
             }
         } else {
-            if($redirect['cnt'] > 5) {
+            if ($redirect['cnt'] > 5) {
                 return false;
             }
             $dlurl = $redirect['url'];
@@ -652,17 +671,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $access_token = $redirect['token'];
         }
 
-        if(!empty($dlurl)) {
+        if (!empty($dlurl)) {
             $url = parse_url($dlurl);
             $cookies = [];
-            if($redirect['cookies']) {
-                foreach($redirect['cookies'] as $d => $c) {
-                    if(strpos($url['host'], $d) !== false) {
+            if ($redirect['cookies']) {
+                foreach ($redirect['cookies'] as $d => $c) {
+                    if (strpos($url['host'], $d) !== false) {
                         $cookies[] = $c;
                     }
                 }
             }
-            if(!empty($access_token)) {
+            if (!empty($access_token)) {
                 $query = isset($url['query']) ? '?'.$url['query'] : '';
                 $stream = stream_socket_client('ssl://'.$url['host'].':443');
                 stream_set_timeout($stream, 300);
@@ -670,29 +689,29 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 fwrite($stream, "Host: {$url['host']}\r\n");
                 fwrite($stream, "Authorization: Bearer {$access_token}\r\n");
                 fwrite($stream, "Connection: Close\r\n");
-                if($cookies) {
+                if ($cookies) {
                     fwrite($stream, 'Cookie: '.implode('; ', $cookies)."\r\n");
                 }
                 fwrite($stream, "\r\n");
-                while(($res = trim(fgets($stream))) !== '') {
+                while (($res = trim(fgets($stream))) !== '') {
                     // find redirect
-                    if(preg_match('/^Location: (.+)$/', $res, $m)) {
+                    if (preg_match('/^Location: (.+)$/', $res, $m)) {
                         $redirect['url'] = $m[1];
                     }
                     // fetch cookie
-                    if(strpos($res, 'Set-Cookie:') === 0) {
+                    if (strpos($res, 'Set-Cookie:') === 0) {
                         $domain = $url['host'];
-                        if(preg_match('/^Set-Cookie:(.+)(?:domain=\s*([^ ;]+))?/i', $res, $c1)) {
-                            if(!empty($c1[2])) {
+                        if (preg_match('/^Set-Cookie:(.+)(?:domain=\s*([^ ;]+))?/i', $res, $c1)) {
+                            if (!empty($c1[2])) {
                                 $domain = trim($c1[2]);
                             }
-                            if(preg_match('/([^ ]+=[^;]+)/', $c1[1], $c2)) {
+                            if (preg_match('/([^ ]+=[^;]+)/', $c1[1], $c2)) {
                                 $redirect['cookies'][$domain] = $c2[1];
                             }
                         }
                     }
                 }
-                if($redirect['url']) {
+                if ($redirect['url']) {
                     $redirect['cnt']++;
                     fclose($stream);
                     return $this->readStream($path, $redirect);
@@ -709,22 +728,26 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function listContents(string $directory, bool $recursive): iterable
     {
         $path = $this->prefixer->prefixPath($directory);
-        if($this->useDisplayPaths) {
+        if ($this->useDisplayPaths) {
             $time = microtime(true);
-            $vp = $this->toVirtualPath($path?:'');
+            $vp = $this->toVirtualPath($path ?: '');
             $elapsed = (microtime(true) - $time) * 1000.0;
-            if(!is_array($vp))
+            if (!is_array($vp)) {
                 $vp = [$vp];
+            }
 
-            foreach($vp as $path) {
-                if(DEBUG_ME)
+            foreach ($vp as $path) {
+                if (DEBUG_ME) {
                     echo 'Converted display path to virtual path ['.number_format($elapsed, 1).'ms]: '.$path."\n";
-                foreach(array_values($this->getItems($path, $recursive)) as $item)
+                }
+                foreach (array_values($this->getItems($path, $recursive)) as $item) {
                     yield $item;
+                }
             }
         } else {
-           foreach(array_values($this->getItems($path, $recursive)) as $item)
+            foreach (array_values($this->getItems($path, $recursive)) as $item) {
                 yield $item;
+            }
         }
     }
 
@@ -737,10 +760,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function getMetadata(string $path)
     {
-        if($this->useDisplayPaths)
+        if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, true, true);
-        if(($obj = $this->getFileObject($path, true))) {
-            if($obj instanceof Google_Service_Drive_DriveFile) {
+        }
+        if (($obj = $this->getFileObject($path, true))) {
+            if ($obj instanceof Google_Service_Drive_DriveFile) {
                 return $this->normaliseObject($obj, self::dirname($path));
             }
         }
@@ -754,17 +778,18 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         try {
             $fileAttributes = $this->getMetadata($prefixedPath);
-        } catch (Throwable $exception) { }
-
-        if ( ! isset($fileAttributes) || ! $fileAttributes instanceof FileAttributes){
-            if(!$type)
-                throw UnableToRetrieveMetadata::create($path, '', $exception);
-            else
-                throw UnableToRetrieveMetadata::$type($path, '', $exception);
+        } catch (Throwable $exception) {
         }
-        if($type && $fileAttributes[$type] === null){
-                throw UnableToRetrieveMetadata::{$type}($path, '',  $exception);
 
+        if (!isset($fileAttributes) || !$fileAttributes instanceof FileAttributes) {
+            if (!$type) {
+                throw UnableToRetrieveMetadata::create($path, '', $exception);
+            } else {
+                throw UnableToRetrieveMetadata::$type($path, '', $exception);
+            }
+        }
+        if ($type && $fileAttributes[$type] === null) {
+            throw UnableToRetrieveMetadata::{$type}($path, '', $exception);
         }
         return $fileAttributes;
     }
@@ -798,14 +823,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function setVisibility(string $path, string $visibility): void
     {
-        try{
-            if($this->useDisplayPaths)
+        try {
+            if ($this->useDisplayPaths) {
                 $path = $this->toVirtualPath($path, false, true);
+            }
             $result = ($visibility === Visibility::PUBLIC) ? $this->publish($path) : $this->unPublish($path);
-        } catch (Throwable $e){
-            throw UnableToSetVisibility::atLocation($path, "Error setting visibility",$e);
+        } catch (Throwable $e) {
+            throw UnableToSetVisibility::atLocation($path, "Error setting visibility", $e);
         }
-        if(!$result) {
+        if (!$result) {
             $className = Visibility::class;
             throw InvalidVisibilityProvided::withVisibility(
                 $visibility,
@@ -820,17 +846,20 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function visibility(string $location): FileAttributes
     {
         $path = $this->prefixer->prefixPath($location);
-        try{
-            if($this->useDisplayPaths)
+        try {
+            if ($this->useDisplayPaths) {
                 $path = $this->toVirtualPath($path, false, true);
+            }
             $file = $this->getFileObject($path);
-        } catch (Throwable $e){ }
-        if(!isset($file)||!$file)
+        } catch (Throwable $e) {
+        }
+        if (!isset($file) || !$file) {
             throw UnableToRetrieveMetadata::visibility($location, '', new \Exception('Error finding the file'));
+        }
         $permissions = $file->getPermissions();
         $visibility = Visibility::PRIVATE;
-        foreach($permissions as $permission) {
-            if($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
+        foreach ($permissions as $permission) {
+            if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
                 $visibility = Visibility::PUBLIC;
                 break;
             }
@@ -849,14 +878,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function getUrl($path)
     {
-        if($this->useDisplayPaths)
+        if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, false, true);
-        if($this->publish($path)) {
+        }
+        if ($this->publish($path)) {
             $obj = $this->getFileObject($path);
-            if(($url = $obj->getWebContentLink())) {
+            if (($url = $obj->getWebContentLink())) {
                 return str_replace('export=download', 'export=media', $url);
             }
-            if(($url = $obj->getWebViewLink())) {
+            if (($url = $obj->getWebViewLink())) {
                 return $url;
             }
         }
@@ -893,14 +923,14 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         $opts = [
             'pageSize' => 1,
-            'orderBy'  => 'folder,modifiedTime,name',
+            'orderBy' => 'folder,modifiedTime,name',
         ];
 
         $paths = [];
         $client->setUseBatch(true);
         $batch = $service->createBatch();
         $i = 0;
-        foreach($targets as $id) {
+        foreach ($targets as $id) {
             $opts['q'] = sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $id, self::DIRMIME);
             /** @var RequestInterface $request */
             $request = $gFiles->listFiles($this->applyDefaultParams($opts, 'files.list'));
@@ -909,8 +939,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $paths['response-'.$key] = $id;
         }
         $results = $batch->execute();
-        foreach($results as $key => $result) {
-            if($result instanceof Google_Service_Drive_FileList) {
+        foreach ($results as $key => $result) {
+            if ($result instanceof Google_Service_Drive_FileList) {
                 $object[$paths[$key]]['hasdir'] = $this->cacheHasDirs[$paths[$key]] = (bool)$result->getFiles();
             }
         }
@@ -927,21 +957,23 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function publish($path)
     {
-        if(($file = $this->getFileObject($path))) {
+        if (($file = $this->getFileObject($path))) {
             $permissions = $file->getPermissions();
             try {
-                foreach($permissions as $permission)
-                    if($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
+                foreach ($permissions as $permission) {
+                    if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
                         return true;
                     }
-            } catch(Exception $e) { }
+                }
+            } catch (Exception $e) {
+            }
             try {
                 $new_permission = new Google_Service_Drive_Permission($this->publishPermission);
-                if($permission = $this->service->permissions->create($file->getId(), $new_permission, $this->applyDefaultParams([], 'files.create'))) {
+                if ($permission = $this->service->permissions->create($file->getId(), $new_permission, $this->applyDefaultParams([], 'files.create'))) {
                     $file->setPermissions([$permission]);
                     return true;
                 }
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 return false;
             }
         }
@@ -958,17 +990,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function unPublish($path)
     {
-        if(($file = $this->getFileObject($path))) {
+        if (($file = $this->getFileObject($path))) {
             $permissions = $file->getPermissions();
             try {
-                foreach($permissions as $permission) {
-                    if($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role'] && !empty($file->getId())) {
+                foreach ($permissions as $permission) {
+                    if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role'] && !empty($file->getId())) {
                         $this->service->permissions->delete($file->getId(), $permission->getId(), $this->applyDefaultParams([], 'files.trash'));
                     }
                 }
                 $file->setPermissions([]);
                 return true;
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 return false;
             }
         }
@@ -985,18 +1017,18 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function splitPath($path, $getParentId = true)
     {
-        if($path === '' || $path === '/') {
+        if ($path === '' || $path === '/') {
             $fileName = $this->root;
             $dirName = '';
         } else {
             $paths = explode('/', $path);
             $fileName = array_pop($paths);
-            if($getParentId) {
+            if ($getParentId) {
                 $dirName = $paths ? array_pop($paths) : '';
             } else {
                 $dirName = implode('/', $paths);
             }
-            if($dirName === '') {
+            if ($dirName === '') {
                 $dirName = $this->root;
             }
         }
@@ -1035,17 +1067,19 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $id = $object->getId();
         $path_parts = $this->splitFileExtension($object->getName());
         $type = $object->mimeType === self::DIRMIME ? 'dir' : 'file';
-        $result = ['id'=>$id];
+        $result = ['id' => $id];
         $visibility = Visibility::PRIVATE;
         $permissions = $object->getPermissions();
         try {
-            foreach($permissions as $permission)
-                if($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
+            foreach ($permissions as $permission) {
+                if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
                     $visibility = Visibility::PUBLIC;
                     break;
                 }
-        } catch (Exception $e) { }
-        if($this->useDisplayPaths) {
+            }
+        } catch (Exception $e) {
+        }
+        if ($this->useDisplayPaths) {
             $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
             $result['display_path'] = $this->toDisplayPath($result['virtual_path']);
         } else {
@@ -1053,14 +1087,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $result['display_path'] = $this->toDisplayPath($result['virtual_path']);
         }
 
-        if($type === 'file') {
+        if ($type === 'file') {
             $result['filename'] = $path_parts['filename'];
             $result['extension'] = $path_parts['extension'];
             return new FileAttributes($result['display_path'], (int)$object->getSize(), $visibility, strtotime($object->getModifiedTime()), $object->mimeType, $result);
         }
-        if($type === 'dir') {
-            if($this->useHasDir)
+        if ($type === 'dir') {
+            if ($this->useHasDir) {
                 $result['hasdir'] = isset($this->cacheHasDirs[$id]) ? $this->cacheHasDirs[$id] : false;
+            }
             return new DirectoryAttributes(rtrim($result['display_path'], '/'), $visibility, strtotime($object->getModifiedTime()), $result);
         }
     }
@@ -1083,12 +1118,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $results = [];
         $parameters = [
             'pageSize' => $maxResults ?: 1000,
-            'fields'   => self::FETCHFIELDS_LIST,
-            'orderBy'  => 'folder,modifiedTime,name',
-            'spaces'   => $this->spaces,
-            'q'        => sprintf('trashed = false and "%s" in parents', $itemId)
+            'fields' => self::FETCHFIELDS_LIST,
+            'orderBy' => 'folder,modifiedTime,name',
+            'spaces' => $this->spaces,
+            'q' => sprintf('trashed = false and "%s" in parents', $itemId)
         ];
-        if($query) {
+        if ($query) {
             $parameters['q'] .= ' and ('.$query.')';
         }
         $pageToken = null;
@@ -1098,25 +1133,25 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         do {
             try {
-                if($pageToken) {
+                if ($pageToken) {
                     $parameters['pageToken'] = $pageToken;
                 }
                 $fileObjs = $gFiles->listFiles($this->applyDefaultParams($parameters, 'files.list'));
-                if($fileObjs instanceof Google_Service_Drive_FileList) {
-                    foreach($fileObjs as $obj) {
+                if ($fileObjs instanceof Google_Service_Drive_FileList) {
+                    foreach ($fileObjs as $obj) {
                         $id = $obj->getId();
                         $this->cacheFileObjects[$id] = $obj;
                         $result = $this->normaliseObject($obj, $dirname);
                         $results[$id] = $result;
-                        if($result->isDir()) {
-                            if($this->useHasDir) {
+                        if ($result->isDir()) {
+                            if ($this->useHasDir) {
                                 $setHasDir[$id] = $id;
                             }
-                            if($this->cacheHasDirs[$itemId] === false) {
+                            if ($this->cacheHasDirs[$itemId] === false) {
                                 $this->cacheHasDirs[$itemId] = true;
                                 unset($setHasDir[$itemId]);
                             }
-                            if($recursive) {
+                            if ($recursive) {
                                 $results = array_merge($results, $this->getItems($result->extraMetadata()['virtual_path'], true, $maxResults, $query));
                             }
                         }
@@ -1125,12 +1160,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 } else {
                     $pageToken = null;
                 }
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 $pageToken = null;
             }
-        } while($pageToken && $maxResults === 0);
+        } while ($pageToken && $maxResults === 0);
 
-        if($setHasDir) {
+        if ($setHasDir) {
             $results = $this->setHasDir($setHasDir, $results);
         }
         return array_values($results);
@@ -1147,7 +1182,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function getFileObject($path, $checkDir = false)
     {
         [, $itemId] = $this->splitPath($path);
-        if(isset($this->cacheFileObjects[$itemId])) {
+        if (isset($this->cacheFileObjects[$itemId])) {
             return $this->cacheFileObjects[$itemId];
         }
 
@@ -1166,12 +1201,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $request = $this->service->files->get($itemId, $opts);
             $batch->add($request, 'obj');
 
-            if($checkDir && $this->useHasDir) {
+            if ($checkDir && $this->useHasDir) {
                 /** @var RequestInterface $request */
                 $request = $service->files->listFiles($this->applyDefaultParams([
                     'pageSize' => 1,
-                    'orderBy'  => 'folder,modifiedTime,name',
-                    'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
+                    'orderBy' => 'folder,modifiedTime,name',
+                    'q' => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
                 ], 'files.list'));
 
                 $batch->add($request, 'hasdir');
@@ -1183,9 +1218,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $client->setUseBatch(false);
         }
 
-        if($fileObj instanceof Google_Service_Drive_DriveFile) {
-            if($hasdir && $fileObj->mimeType === self::DIRMIME) {
-                if($hasdir instanceof Google_Service_Drive_FileList) {
+        if ($fileObj instanceof Google_Service_Drive_DriveFile) {
+            if ($hasdir && $fileObj->mimeType === self::DIRMIME) {
+                if ($hasdir instanceof Google_Service_Drive_FileList) {
                     $this->cacheHasDirs[$fileObj->getId()] = (bool)$hasdir->getFiles();
                 }
             }
@@ -1193,7 +1228,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $fileObj = null;
         }
 
-        if($fileObj !== null) {
+        if ($fileObj !== null) {
             $this->cacheFileObjects[$itemId] = $fileObj;
             $this->cacheObjects([$itemId => $fileObj]);
         }
@@ -1210,13 +1245,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function getDownloadUrl($file)
     {
-        if(strpos($file->mimeType, 'application/vnd.google-apps') !== 0) {
+        if (strpos($file->mimeType, 'application/vnd.google-apps') !== 0) {
             $params = $this->applyDefaultParams(['alt' => 'media'], 'files.get');
             return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'?'.http_build_query($params);
         }
 
         $mimeMap = $this->options['appsExportMap'];
-        if(isset($mimeMap[$file->getMimeType()])) {
+        if (isset($mimeMap[$file->getMimeType()])) {
             $mime = $mimeMap[$file->getMimeType()];
         } else {
             $mime = $mimeMap['default'];
@@ -1267,23 +1302,24 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $mime = $config->get('mimetype');
         $file = new Google_Service_Drive_DriveFile();
 
-        if($updating === null || $updating === true) {
+        if ($updating === null || $updating === true) {
             $srcFile = $this->getFileObject($path);
             $updating = $srcFile !== null;
         } else {
             $srcFile = null;
         }
-        if(!$updating) {
+        if (!$updating) {
             $file->setName($fileName);
             $file->setParents([
                 $parentId
             ]);
         }
 
-        if(!$mime) {
+        if (!$mime) {
             $mime = self::guessMimeType($fileName, is_string($contents) ? $contents : '');
-            if(empty($mime))
+            if (empty($mime)) {
                 $mime = 'application/octet-stream';
+            }
         }
         $file->setMimeType($mime);
 
@@ -1291,15 +1327,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $stream = Psr7\stream_for($contents);
         $size = $stream->getSize();
 
-        if($size <= self::MAX_CHUNK_SIZE) {
+        if ($size <= self::MAX_CHUNK_SIZE) {
             // one shot upload
             $params = [
-                'data'       => $stream,
+                'data' => $stream,
                 'uploadType' => 'media',
-                'fields'     => self::FETCHFIELDS_GET
+                'fields' => self::FETCHFIELDS_GET
             ];
 
-            if(!$updating) {
+            if (!$updating) {
                 $obj = $this->service->files->create($file, $this->applyDefaultParams($params, 'files.create'));
             } else {
                 $obj = $this->service->files->update($srcFile->getId(), $file, $this->applyDefaultParams($params, 'files.update'));
@@ -1313,7 +1349,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             ];
 
             $client->setDefer(true);
-            if(!$updating) {
+            if (!$updating) {
                 /** @var RequestInterface $request */
                 $request = $this->service->files->create($file, $this->applyDefaultParams($params, 'files.create'));
             } else {
@@ -1324,27 +1360,29 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $media = new StreamableUpload($client, $request, $mime, $stream, true, self::MAX_CHUNK_SIZE);
             $media->setFileSize($size);
             do {
-                if(DEBUG_ME)
+                if (DEBUG_ME) {
                     echo "* Uploading next chunk.\n";
+                }
                 $status = $media->nextChunk();
-            } while($status === false);
+            } while ($status === false);
 
             // The final value of $status will be the data from the API for the object that has been uploaded.
-            if($status !== false)
+            if ($status !== false) {
                 $obj = $status;
+            }
 
             $client->setDefer(false);
         }
 
         $this->resetRequest($parentId);
 
-        if(isset($obj) && $obj instanceof Google_Service_Drive_DriveFile) {
+        if (isset($obj) && $obj instanceof Google_Service_Drive_DriveFile) {
             $this->cacheFileObjects[$obj->getId()] = $obj;
             $this->cacheObjects([$obj->getId() => $obj]);
             $result = $this->normaliseObject($obj, self::dirname($path));
-            if($config->get('visibility') === Visibility::PUBLIC) {
+            if ($config->get('visibility') === Visibility::PUBLIC) {
                 $this->publish($obj->getId());
-            }else{
+            } else {
                 $this->unpublish($obj->getId());
             }
             return $result;
@@ -1359,15 +1397,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function getObjects($ids, $checkDir = false)
     {
-        if($checkDir && !$this->useHasDir)
+        if ($checkDir && !$this->useHasDir) {
             $checkDir = false;
+        }
 
         $fetch = [];
-        foreach($ids as $itemId) {
-            if(!isset($this->cacheFileObjects[$itemId]))
+        foreach ($ids as $itemId) {
+            if (!isset($this->cacheFileObjects[$itemId])) {
                 $fetch[$itemId] = null;
+            }
         }
-        if(!empty($fetch) || $checkDir) {
+        if (!empty($fetch) || $checkDir) {
             $service = $this->service;
             $client = $service->getClient();
 
@@ -1380,7 +1420,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 ];
 
                 $count = 0;
-                if(!$this->rootId) {
+                if (!$this->rootId) {
                     /** @var RequestInterface $request */
                     $request = $this->service->files->get($this->root, $this->applyDefaultParams($opts, 'files.get'));
                     $batch->add($request, 'rootdir');
@@ -1388,63 +1428,68 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 }
 
                 $results = [];
-                foreach($fetch as $itemId => $value) {
-                    if(DEBUG_ME)
+                foreach ($fetch as $itemId => $value) {
+                    if (DEBUG_ME) {
                         echo "*** FETCH *** $itemId\n";
+                    }
 
                     /** @var RequestInterface $request */
                     $request = $this->service->files->get($itemId, $opts);
                     $batch->add($request, $itemId);
                     $count++;
 
-                    if($checkDir) {
+                    if ($checkDir) {
                         /** @var RequestInterface $request */
                         $request = $service->files->listFiles($this->applyDefaultParams([
                             'pageSize' => 1,
-                            'orderBy'  => 'folder,modifiedTime,name',
-                            'q'        => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
+                            'orderBy' => 'folder,modifiedTime,name',
+                            'q' => sprintf('trashed = false and "%s" in parents and mimeType = "%s"', $itemId, self::DIRMIME)
                         ], 'files.list'));
                         $batch->add($request, 'hasdir-'.$itemId);
                         $count++;
                     }
 
-                    if($count > 90) {
+                    if ($count > 90) {
                         // batch requests are limited to 100 calls in a single batch request
                         $results[] = $batch->execute();
                         $batch = $service->createBatch();
                         $count = 0;
                     }
                 }
-                if($count > 0)
+                if ($count > 0) {
                     $results[] = $batch->execute();
-                if(!empty($results))
+                }
+                if (!empty($results)) {
                     $results = array_merge(...$results);
+                }
 
-                foreach($results as $key => $value) {
-                    if($value instanceof Google_Service_Drive_DriveFile) {
+                foreach ($results as $key => $value) {
+                    if ($value instanceof Google_Service_Drive_DriveFile) {
                         $itemId = $value->getId();
                         $this->cacheFileObjects[$itemId] = $value;
-                        if(!$this->rootId && strcmp($key, 'response-rootdir') === 0) {
+                        if (!$this->rootId && strcmp($key, 'response-rootdir') === 0) {
                             $this->rootId = $itemId;
                         }
-                    } else if($checkDir && $value instanceof Google_Service_Drive_FileList) {
-                        if(strncmp($key, 'response-hasdir-', 16) === 0) {
-                            $key = substr($key, 16);
-                            if(isset($this->cacheFileObjects[$key]) && $this->cacheFileObjects[$key]->mimeType === self::DIRMIME)
-                                $this->cacheHasDirs[$key] = (bool)$value->getFiles();
+                    } else {
+                        if ($checkDir && $value instanceof Google_Service_Drive_FileList) {
+                            if (strncmp($key, 'response-hasdir-', 16) === 0) {
+                                $key = substr($key, 16);
+                                if (isset($this->cacheFileObjects[$key]) && $this->cacheFileObjects[$key]->mimeType === self::DIRMIME) {
+                                    $this->cacheHasDirs[$key] = (bool)$value->getFiles();
+                                }
+                            }
                         }
                     }
                 }
 
                 $this->cacheObjects($results);
-
             } finally {
                 $client->setUseBatch(false);
             }
         }
 
         $objects = [];
-        foreach($ids as $itemId) {
+        foreach ($ids as $itemId) {
             $objects[$itemId] = isset($this->cacheFileObjects[$itemId]) ? $this->cacheFileObjects[$itemId] : null;
         }
         return $objects;
@@ -1456,19 +1501,20 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $itemIds = [$lastItemId];
         $paths = ['' => ''];
         $is_first = true;
-        while(!empty($itemIds)) {
+        while (!empty($itemIds)) {
             $new_itemIds = [];
             $new_paths = [];
-            foreach($itemIds as $itemId) {
-                if(empty($this->cacheFileObjects[$itemId]))
+            foreach ($itemIds as $itemId) {
+                if (empty($this->cacheFileObjects[$itemId])) {
                     continue;
+                }
 
                 /* @var Google_Service_Drive_DriveFile $obj */
                 $obj = $this->cacheFileObjects[$itemId];
                 $parents = $obj->getParents();
 
-                foreach($paths as $id => $path) {
-                    if($is_first) {
+                foreach ($paths as $id => $path) {
+                    if ($is_first) {
                         $is_first = false;
                         $new_path = $this->sanitizeFilename($obj->getName());
                         $id = $itemId;
@@ -1476,16 +1522,20 @@ class GoogleDriveAdapter implements FilesystemAdapter
                         $new_path = $this->sanitizeFilename($obj->getName()).'/'.$path;
                     }
 
-                    if($this->rootId === $itemId) {
-                        if(!empty($path))
-                            $complete_paths[$id] = $path; // this path is complete...don't include drive name
-                    } else if(!empty($parents)) {
-                        $new_paths[$id] = $new_path;
+                    if ($this->rootId === $itemId) {
+                        if (!empty($path)) {
+                            $complete_paths[$id] = $path;
+                        } // this path is complete...don't include drive name
+                    } else {
+                        if (!empty($parents)) {
+                            $new_paths[$id] = $new_path;
+                        }
                     }
                 }
 
-                if(!empty($parents))
+                if (!empty($parents)) {
                     $new_itemIds[] = (array)($obj->getParents());
+                }
             }
             $paths = $new_paths;
             $itemIds = !empty($new_itemIds) ? array_merge(...$new_itemIds) : [];
@@ -1496,16 +1546,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
     protected function uncacheId($id)
     {
         $basePath = null;
-        foreach($this->cachedPaths as $path => $itemId) {
-            if($itemId === $id) {
+        foreach ($this->cachedPaths as $path => $itemId) {
+            if ($itemId === $id) {
                 $basePath = (string)$path;
                 break;
             }
         }
-        if($basePath) {
-            foreach($this->cachedPaths as $path => $itemId) {
-                if(strlen((string)$path) >= strlen($basePath) && strncmp((string)$path, $basePath, strlen($basePath)) === 0)
+        if ($basePath) {
+            foreach ($this->cachedPaths as $path => $itemId) {
+                if (strlen((string)$path) >= strlen($basePath) && strncmp((string)$path, $basePath, strlen($basePath)) === 0) {
                     unset($this->cachedPaths[$path]);
+                }
             }
         }
 
@@ -1514,31 +1565,36 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     protected function cacheObjects($objects)
     {
-        foreach($objects as $key => $value) {
-            if($value instanceof Google_Service_Drive_DriveFile) {
+        foreach ($objects as $key => $value) {
+            if ($value instanceof Google_Service_Drive_DriveFile) {
                 $complete_paths = $this->buildPathFromCacheFileObjects($value->getId());
-                foreach($complete_paths as $itemId => $path) {
-                    if(DEBUG_ME)
+                foreach ($complete_paths as $itemId => $path) {
+                    if (DEBUG_ME) {
                         echo 'Complete path: '.$path.' ['.$itemId."]\n";
+                    }
 
-                    if(!isset($this->cachedPaths[$path])) {
+                    if (!isset($this->cachedPaths[$path])) {
                         $this->cachedPaths[$path] = $itemId;
-                    } else if(!is_array($this->cachedPaths[$path])) {
-                        if($itemId !== $this->cachedPaths[$path]) {
-                            // convert to array
-                            $this->cachedPaths[$path] = [
+                    } else {
+                        if (!is_array($this->cachedPaths[$path])) {
+                            if ($itemId !== $this->cachedPaths[$path]) {
+                                // convert to array
+                                $this->cachedPaths[$path] = [
                                 $this->cachedPaths[$path],
                                 $itemId
                             ];
 
-                            if(DEBUG_ME)
-                                echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";
-                        }
-                    } else {
-                        if(!in_array($itemId, $this->cachedPaths[$path])) {
-                            array_push($this->cachedPaths[$path], $itemId);
-                            if(DEBUG_ME)
-                                echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";
+                                if (DEBUG_ME) {
+                                    echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";
+                                }
+                            }
+                        } else {
+                            if (!in_array($itemId, $this->cachedPaths[$path])) {
+                                array_push($this->cachedPaths[$path], $itemId);
+                                if (DEBUG_ME) {
+                                    echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";
+                                }
+                            }
                         }
                     }
                 }
@@ -1549,9 +1605,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
     protected function indexString($str, $ch = '/')
     {
         $indices = [];
-        for($i = 0, $len = strlen($str); $i < $len; $i++) {
-            if($str[$i] === $ch)
+        for ($i = 0, $len = strlen($str); $i < $len; $i++) {
+            if ($str[$i] === $ch) {
                 $indices[] = $i;
+            }
         }
         return $indices;
     }
@@ -1559,7 +1616,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     protected function getCachedPathId($path, $indices = null)
     {
         $pathLen = strlen($path);
-        if($indices === null) {
+        if ($indices === null) {
             $indices = $this->indexString($path, '/');
             $indices[] = $pathLen;
         }
@@ -1568,15 +1625,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $itemId = null;
         $pathMatch = null;
 
-        foreach($this->cachedPaths as $pathFrag => $id) {
+        foreach ($this->cachedPaths as $pathFrag => $id) {
             $pathFrag = (string)$pathFrag;
             $len = strlen($pathFrag);
-            if($len > $pathLen || $len < $maxLen || !in_array($len, $indices))
+            if ($len > $pathLen || $len < $maxLen || !in_array($len, $indices)) {
                 continue;
+            }
 
-            if(strncmp($pathFrag, $path, $len) === 0) {
-                if($len === $pathLen)
-                    return [$id, $pathFrag]; // we found a perfect match
+            if (strncmp($pathFrag, $path, $len) === 0) {
+                if ($len === $pathLen) {
+                    return [$id, $pathFrag];
+                } // we found a perfect match
 
                 $maxLen = $len;
                 $itemId = $id;
@@ -1590,17 +1649,20 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     protected function getPathToIndex($path, $i, $indices)
     {
-        if($i < 0)
+        if ($i < 0) {
             return '';
-        if(!isset($indices[$i]) || !isset($indices[$i + 1]))
+        }
+        if (!isset($indices[$i]) || !isset($indices[$i + 1])) {
             return $path;
+        }
         return substr($path, 0, $indices[$i]);
     }
 
     protected function getToken($path, $i, $indices)
     {
-        if($i < 0 || !isset($indices[$i]))
+        if ($i < 0 || !isset($indices[$i])) {
             return '';
+        }
         $start = $i > 0 ? $indices[$i - 1] + 1 : 0;
         return substr($path, $start, isset($indices[$i]) ? $indices[$i] - $start : null);
     }
@@ -1608,73 +1670,84 @@ class GoogleDriveAdapter implements FilesystemAdapter
     protected function cachePaths($displayPath, $i, $indices, $parentItemId)
     {
         $nextItemId = $parentItemId;
-        for($count = count($indices); $i < $indices; $i++) {
+        for ($count = count($indices); $i < $indices; $i++) {
             $token = $this->getToken($displayPath, $i, $indices);
-            if(empty($token) && $token!=='0')
+            if (empty($token) && $token !== '0') {
                 return;
+            }
             $basePath = $this->getPathToIndex($displayPath, $i - 2, $indices);
-            if(!empty($basePath))
+            if (!empty($basePath)) {
                 $basePath .= '/';
+            }
 
-            if($nextItemId === null)
+            if ($nextItemId === null) {
                 return;
+            }
 
             $is_last = $i === $count - 1;
 
             // search only for directories unless it's the last token
-            if(!is_array($nextItemId))
+            if (!is_array($nextItemId)) {
                 $nextItemId = [$nextItemId];
+            }
 
             $items = [];
-            foreach($nextItemId as $id) {
-                if(!$this->canRequest($id, $is_last))
+            foreach ($nextItemId as $id) {
+                if (!$this->canRequest($id, $is_last)) {
                     continue;
+                }
                 $this->markRequest($id, $is_last);
-                if(DEBUG_ME)
+                if (DEBUG_ME) {
                     echo 'New req: '.$id;
+                }
                 $items[] = $this->getItems($id, false, 0, $is_last ? '' : 'mimeType = "'.self::DIRMIME.'"');
-                if(DEBUG_ME)
+                if (DEBUG_ME) {
                     echo " ...done\n";
+                }
             }
-            if(!empty($items)) {
+            if (!empty($items)) {
                 /** @noinspection SlowArrayOperationsInLoopInspection */
                 $items = array_merge(...$items);
             }
 
             $nextItemId = null;
-            foreach($items as $itemObj) {
-                $item=$itemObj->extraMetadata();
+            foreach ($items as $itemObj) {
+                $item = $itemObj->extraMetadata();
                 $itemId = basename($item['virtual_path']);
                 $fullPath = $basePath.$item['display_path'];
 
                 // update cache
-                if(!isset($this->cachedPaths[$fullPath])) {
+                if (!isset($this->cachedPaths[$fullPath])) {
                     $this->cachedPaths[$fullPath] = $itemId;
-                    if(DEBUG_ME)
+                    if (DEBUG_ME) {
                         echo 'Caching: '.$fullPath.' => '.$itemId."\n";
+                    }
                 } else {
-                    if(!is_array($this->cachedPaths[$fullPath])) {
-                        if($itemId !== $this->cachedPaths[$fullPath]) {
+                    if (!is_array($this->cachedPaths[$fullPath])) {
+                        if ($itemId !== $this->cachedPaths[$fullPath]) {
                             // convert to array
                             $this->cachedPaths[$fullPath] = [
                                 $this->cachedPaths[$fullPath],
                                 $itemId
                             ];
 
-                            if(DEBUG_ME)
+                            if (DEBUG_ME) {
                                 echo 'Caching [DUP]: '.$fullPath.' => '.$itemId."\n";
+                            }
                         }
                     } else {
-                        if(!in_array($itemId, $this->cachedPaths[$fullPath])) {
+                        if (!in_array($itemId, $this->cachedPaths[$fullPath])) {
                             $this->cachedPaths[$fullPath][] = $itemId;
-                            if(DEBUG_ME)
+                            if (DEBUG_ME) {
                                 echo 'Caching [DUP]: '.$fullPath.' => '.$itemId."\n";
+                            }
                         }
                     }
                 }
 
-                if(basename($item['display_path']) === $token)
-                    $nextItemId = $this->cachedPaths[$fullPath]; // found our token
+                if (basename($item['display_path']) === $token) {
+                    $nextItemId = $this->cachedPaths[$fullPath];
+                } // found our token
             }
         }
     }
@@ -1692,20 +1765,22 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         $tmp = '';
         $tokens = explode('/', trim($displayPath, '/'));
-        foreach($tokens as $token) {
-            if(empty($tmp))
+        foreach ($tokens as $token) {
+            if (empty($tmp)) {
                 $tmp .= $token;
-            else
+            } else {
                 $tmp .= '/'.$token;
+            }
 
-            if(empty($this->cachedPaths[$tmp]))
+            if (empty($this->cachedPaths[$tmp])) {
                 throw UnableToReadFile::fromLocation($displayPath, 'File not found');
-            if(is_array($this->cachedPaths[$tmp])) {
+            }
+            if (is_array($this->cachedPaths[$tmp])) {
                 $new_paths = [];
-                foreach($paths as $path => $obj) {
+                foreach ($paths as $path => $obj) {
                     $parentId = $path === '' ? '' : basename($path);
-                    foreach($this->cachedPaths[$tmp] as $id) {
-                        if($parentId === '' || (!empty($this->cacheFileObjects[$id]->parents) && in_array($parentId, $this->cacheFileObjects[$id]->parents))) {
+                    foreach ($this->cachedPaths[$tmp] as $id) {
+                        if ($parentId === '' || (!empty($this->cacheFileObjects[$id]->parents) && in_array($parentId, $this->cacheFileObjects[$id]->parents))) {
                             $new_paths[$path.'/'.$id] = $this->cacheFileObjects[$id];
                         }
                     }
@@ -1714,9 +1789,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
             } else {
                 $id = $this->cachedPaths[$tmp];
                 $new_paths = [];
-                foreach($paths as $path => $obj) {
+                foreach ($paths as $path => $obj) {
                     $parentId = $path === '' ? '' : basename($path);
-                    if($parentId === '' || (!empty($this->cacheFileObjects[$id]->parents) && in_array($parentId, $this->cacheFileObjects[$id]->parents))) {
+                    if ($parentId === '' || (!empty($this->cacheFileObjects[$id]->parents) && in_array($parentId, $this->cacheFileObjects[$id]->parents))) {
                         $new_paths[$path.'/'.$id] = $this->cacheFileObjects[$id];
                     }
                 }
@@ -1725,31 +1800,36 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
 
         $count = count($paths);
-        if($count === 0)
+        if ($count === 0) {
             throw UnableToReadFile::fromLocation($displayPath, 'File not found');
+        }
 
-        if(count($paths) > 1) {
+        if (count($paths) > 1) {
             // sort oldest to newest
             uasort($paths, function ($a, $b) {
                 $t1 = strtotime($a->getCreatedTime());
                 $t2 = strtotime($b->getCreatedTime());
-                if($t1 < $t2)
+                if ($t1 < $t2) {
                     return -1;
-                if($t1 > $t2)
+                }
+                if ($t1 > $t2) {
                     return 1;
+                }
                 return 0;
             });
 
-            if(!$returnFirstItem)
+            if (!$returnFirstItem) {
                 return array_keys($paths);
+            }
         }
         return array_keys($paths)[0];
     }
 
     protected function returnSingle($item, $returnFirstItem)
     {
-        if($returnFirstItem && is_array($item))
+        if ($returnFirstItem && is_array($item)) {
             return $item[0];
+        }
         return $item;
     }
 
@@ -1763,8 +1843,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function toVirtualPath($displayPath, $makeFullVirtualPath = true, $returnFirstItem = false)
     {
-        if($displayPath === '' || $displayPath === '/' || $displayPath === $this->root)
+        if ($displayPath === '' || $displayPath === '/' || $displayPath === $this->root) {
             return '';
+        }
 
         $displayPath = trim($displayPath, '/'); // not needed
 
@@ -1773,23 +1854,27 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         [$itemId, $pathMatch] = $this->getCachedPathId($displayPath, $indices);
         $i = 0;
-        if($pathMatch !== null) {
-            if(strcmp($pathMatch, $displayPath) === 0) {
-                if($makeFullVirtualPath)
+        if ($pathMatch !== null) {
+            if (strcmp($pathMatch, $displayPath) === 0) {
+                if ($makeFullVirtualPath) {
                     return $this->makeFullVirtualPath($displayPath, $returnFirstItem);
+                }
                 return $this->returnSingle($itemId, $returnFirstItem);
             }
             $i = array_search(strlen($pathMatch), $indices) + 1;
         }
-        if($itemId === null)
+        if ($itemId === null) {
             $itemId = '';
+        }
         $this->cachePaths($displayPath, $i, $indices, $itemId);
 
-        if($makeFullVirtualPath)
+        if ($makeFullVirtualPath) {
             return $this->makeFullVirtualPath($displayPath, $returnFirstItem);
+        }
 
-        if(empty($this->cachedPaths[$displayPath]))
+        if (empty($this->cachedPaths[$displayPath])) {
             throw UnableToReadFile::fromLocation($displayPath, 'File not found');
+        }
 
         return $this->returnSingle($this->cachedPaths[$displayPath], $returnFirstItem);
     }
@@ -1802,7 +1887,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function toDisplayPath($virtualPath)
     {
-        if($virtualPath === '' || $virtualPath === '/') {
+        if ($virtualPath === '' || $virtualPath === '/') {
             return '/';
         }
 
@@ -1811,11 +1896,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
         /** @var Google_Service_Drive_DriveFile[] $objects */
         $objects = $this->getObjects($tokens);
         $display = '';
-        foreach($tokens as $token) {
-            if(!isset($objects[$token]))
+        foreach ($tokens as $token) {
+            if (!isset($objects[$token])) {
                 throw UnableToReadFile::fromLocation($virtualPath, 'File not found');
-            if(!empty($display) || $display==='0')
+            }
+            if (!empty($display) || $display === '0') {
                 $display .= '/';
+            }
             $display .= $this->sanitizeFilename($objects[$token]->getName());
         }
         return $display;
@@ -1825,25 +1912,28 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         try {
             $path = $this->toVirtualPath($displayPath, $makeFullVirtualPath, true);
-        } catch(UnableToReadFile $e) {
-            if(!$createDirsIfNeeded) {
-                if($can_throw)
+        } catch (UnableToReadFile $e) {
+            if (!$createDirsIfNeeded) {
+                if ($can_throw) {
                     throw $e;
+                }
                 return false;
             }
 
             $subdir = $is_dir ? $displayPath : self::dirname($displayPath);
-            if($subdir === '' || $this->createDirectory($subdir, new Config(), true) === false) {
-                if($can_throw)
+            if ($subdir === '' || $this->createDirectory($subdir, new Config(), true) === false) {
+                if ($can_throw) {
                     throw $e;
+                }
                 return false;
             }
 
             try {
                 $path = $this->toVirtualPath($displayPath, $makeFullVirtualPath, true);
-            } catch(UnableToReadFile $e) {
-                if($can_throw)
+            } catch (UnableToReadFile $e) {
+                if ($can_throw) {
                     throw $e;
+                }
                 return false;
             }
         }
@@ -1852,12 +1942,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     protected function canRequest($id, $is_full_req)
     {
-        if(!isset($this->requestedIds[$id]))
+        if (!isset($this->requestedIds[$id])) {
             return true;
-        if($is_full_req && $this->requestedIds[$id]['type'] === false)
-            return true; // we're making a full dir request and previous request was dirs only...allow
-        if(time() - $this->requestedIds[$id]['time'] > self::FILE_OBJECT_MINIMUM_VALID_TIME)
+        }
+        if ($is_full_req && $this->requestedIds[$id]['type'] === false) {
             return true;
+        } // we're making a full dir request and previous request was dirs only...allow
+        if (time() - $this->requestedIds[$id]['time'] > self::FILE_OBJECT_MINIMUM_VALID_TIME) {
+            return true;
+        }
         return false; // not yet
     }
 
@@ -1875,18 +1968,20 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function resetRequest($id, $reset_all = false)
     {
-        if($reset_all) {
+        if ($reset_all) {
             $this->requestedIds = [];
         } else {
-            if(is_array($id)) {
-                foreach($id as $i) {
-                    if($i === $this->root)
+            if (is_array($id)) {
+                foreach ($id as $i) {
+                    if ($i === $this->root) {
                         unset($this->requestedIds['']);
+                    }
                     unset($this->requestedIds[$i]);
                 }
             } else {
-                if($id === $this->root)
+                if ($id === $this->root) {
                     unset($this->requestedIds['']);
+                }
                 unset($this->requestedIds[$id]);
             }
         }
@@ -1980,11 +2075,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public static function guessMimeType($path, $content)
     {
-        $detector=new FinfoMimeTypeDetector();
+        $detector = new FinfoMimeTypeDetector();
         if (is_string($content)) {
-             $mimeType = $detector->detectMimeTypeFromBuffer($content);
+            $mimeType = $detector->detectMimeTypeFromBuffer($content);
         }
-        if ( ! (empty($mimeType) || in_array($mimeType, ['application/x-empty', 'text/plain', 'text/x-asm']))) {
+        if (!(empty($mimeType) || in_array($mimeType, ['application/x-empty', 'text/plain', 'text/x-asm']))) {
             return $mimeType;
         }
         return $detector->detectMimeTypeFromPath($path) ?: 'text/plain';
@@ -2001,5 +2096,4 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         return $dirname === '.' ? '' : $dirname;
     }
-
 }

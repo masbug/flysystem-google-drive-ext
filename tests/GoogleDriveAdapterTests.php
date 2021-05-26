@@ -17,33 +17,37 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
 
     public static function setUpBeforeClass(): void
     {
-        static::$adapterPrefix = 'ci/' . bin2hex(random_bytes(10));
+        static::$adapterPrefix = 'ci/'.bin2hex(random_bytes(10));
     }
 
     protected static function createFilesystemAdapter(): FilesystemAdapter
     {
-        $file=__DIR__ .'/../google-drive-service-account.json';
-        if ( ! file_exists($file)) {
+        $file = __DIR__.'/../google-drive-service-account.json';
+        if (!file_exists($file)) {
             self::markTestSkipped("No google service account file {$file} found in project root.");
         }
-        try{
+        try {
             $config=json_decode(file_get_contents($file),true);
-            if(!$config)
+            if (!$config) {
                 self::markTestSkipped("Format json error in {$file}.");
-            if( (!isset($config['GOOGLE_DRIVE_CLIENT_ID'])||empty($config['GOOGLE_DRIVE_CLIENT_ID']))
-                ||(!isset($config['GOOGLE_DRIVE_CLIENT_SECRET'])||empty($config['GOOGLE_DRIVE_CLIENT_SECRET']))
-                ||(!isset($config['GOOGLE_DRIVE_REFRESH_TOKEN'])||empty($config['GOOGLE_DRIVE_REFRESH_TOKEN']))
-            )
+            }
+            if(empty($config['GOOGLE_DRIVE_CLIENT_ID'] ?? null) ||
+               empty($config['GOOGLE_DRIVE_CLIENT_SECRET'] ?? null) ||
+               empty($config['GOOGLE_DRIVE_REFRESH_TOKEN'] ?? null)
+            ) {
                 self::markTestSkipped("No google service config found in {$file}.");
+            }
             $options = [];
-            if(isset($config['teamDriveId'])&&!empty($config['teamDriveId'])) $options['teamDriveId']=$config['teamDriveId'];
+            if (!empty($config['teamDriveId'] ?? null)) {
+                $options['teamDriveId'] = $config['teamDriveId'];
+            }
             $client = new \Google_Client();
             $client->setClientId($config['GOOGLE_DRIVE_CLIENT_ID']);
             $client->setClientSecret($config['GOOGLE_DRIVE_CLIENT_SECRET']);
             $client->refreshToken($config['GOOGLE_DRIVE_REFRESH_TOKEN']);
             $service = new \Google_Service_Drive($client);
-            return new GoogleDriveAdapter($service,'tests/', $options);
-        }catch(\Exception $e){
+            return new GoogleDriveAdapter($service, 'tests/', $options);
+        } catch(\Exception $e) {
             self::markTestSkipped($e->getMessage());
         }
     }
