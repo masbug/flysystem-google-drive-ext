@@ -14,8 +14,10 @@ use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemAdapter;
+use League\Flysystem\InvalidVisibilityProvided;
 use League\Flysystem\PathPrefixer;
 use League\Flysystem\UnableToCopyFile;
+use League\Flysystem\UnableToCreateDirectory;
 use League\Flysystem\UnableToDeleteDirectory;
 use League\Flysystem\UnableToDeleteFile;
 use League\Flysystem\UnableToMoveFile;
@@ -608,7 +610,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         if (($response = $this->service->files->get($fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
             return (string)$response->getBody();
         }
-        throw UnableToReadFile::fromLocation($path, '', 'Unable To Read File');
+        throw UnableToReadFile::fromLocation($path, 'Unable To Read File');
     }
 
     /**
@@ -635,7 +637,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             ];
             if (($file = $this->getFileObject($path))) {
                 if ($file->getMimeType() === self::DIRMIME) {
-                    throw new FileNotFoundException($path);
+                    throw UnableToReadFile::fromLocation($location, 'Unable To Read File');
                 }
                 $dlurl = $this->getDownloadUrl($file);
                 $client = $this->service->getClient();
@@ -665,7 +667,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
         } else {
             if ($redirect['cnt'] > 5) {
-                return false;
+                throw UnableToReadFile::fromLocation($location, 'Unable To Read File');
             }
             $dlurl = $redirect['url'];
             $redirect['url'] = '';
@@ -720,7 +722,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 return $stream;
             }
         }
-        throw UnableToReadFile::fromLocation($path, 'Downloaded object does not contain a file resource.');
+        throw UnableToReadFile::fromLocation($location, 'Downloaded object does not contain a file resource.');
     }
 
     /**
@@ -1061,7 +1063,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * @param Google_Service_Drive_DriveFile $object
      * @param string                         $dirname Parent directory itemId path
      *
-     * @return array Normalised files array
+     * @return \League\Flysystem\StorageAttributes Normalised files array
      */
     protected function normaliseObject(Google_Service_Drive_DriveFile $object, $dirname)
     {
@@ -1922,7 +1924,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
 
             $subdir = $is_dir ? $displayPath : self::dirname($displayPath);
-            if ($subdir === '' || $this->createDirectory($subdir, new Config(), true) === false) {
+            if ($subdir === '' || !is_null($this->createDirectory($subdir, new Config()))) {
                 if ($can_throw) {
                     throw $e;
                 }
