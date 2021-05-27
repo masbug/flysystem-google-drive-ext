@@ -5,7 +5,8 @@
         "flysystem",
         "google-drive",
         "translated",
-        "extended"
+        "extended",
+        "laravel"
     ],
     "license": "Apache-2.0",
     "authors": [
