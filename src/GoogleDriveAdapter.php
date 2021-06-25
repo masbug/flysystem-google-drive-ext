@@ -335,7 +335,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $path = $this->prefixer->prefixPath($location);
         if ($this->useDisplayPaths) {
             try {
-                $virtual_path = $this->toVirtualPath($path, true, false);
+                $virtual_path = $this->toVirtualPath($path, true, true);
                 $updating = true; // destination exists
             } catch (UnableToReadFile $e) {
                 $updating = false;
@@ -447,6 +447,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     }
                 }
             } catch (Exception $e) {
+                // unnecesary
             }
             if ($config->get('visibility') === Visibility::PUBLIC || $visibility === Visibility::PUBLIC) {
                 $this->publish($id);
@@ -489,7 +490,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
         foreach ($ids as $id) {
             if ($id !== '' && ($file = $this->getFileObject($id))) {
-                if (($parents = $file->getParents())) {
+                if ($file->getParents()) {
                     $file = new Google_Service_Drive_DriveFile();
                     $file->setTrashed(true);
                     if ($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
@@ -906,7 +907,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function hasDir($path)
     {
         $meta = $this->getMetadata($path)->extraMetadata();
-        return ($meta && isset($meta['hasdir'])) ? $meta : [
+        return (is_array($meta) && isset($meta['hasdir'])) ? $meta : [
             'hasdir' => true
         ];
     }
@@ -969,6 +970,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     }
                 }
             } catch (Exception $e) {
+                // unnecesary
             }
             try {
                 $new_permission = new Google_Service_Drive_Permission($this->publishPermission);
@@ -1081,6 +1083,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 }
             }
         } catch (Exception $e) {
+            // unnecesary
         }
         if ($this->useDisplayPaths) {
             $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
@@ -1214,7 +1217,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
                 $batch->add($request, 'hasdir');
             }
-            $results = array_values($batch->execute());
+            $results = array_values($batch->execute() ?: []);
 
             [$fileObj, $hasdir] = array_pad($results, 2, null);
         } finally {
@@ -1297,7 +1300,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * @param string|resource $contents
      * @param Config          $config
      * @param bool|null       $updating If null then we check for existence of the file
-     * @return array|false item info array
+     * @return \League\Flysystem\StorageAttributes|false item info
      */
     protected function upload($path, $contents, Config $config, $updating = null)
     {
@@ -1924,7 +1927,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
 
             $subdir = $is_dir ? $displayPath : self::dirname($displayPath);
-            if ($subdir === '' || !is_null($this->createDirectory($subdir, new Config()))) {
+            if ($subdir === '') {
+                if ($can_throw) {
+                    throw $e;
+                }
+                return false;
+            }
+
+            $this->createDirectory($subdir, new Config());
+            if (!$this->hasDir($subdir)){
                 if ($can_throw) {
                     throw $e;
                 }
