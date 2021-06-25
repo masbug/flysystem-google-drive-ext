@@ -1935,7 +1935,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
 
             $this->createDirectory($subdir, new Config());
-            if (!$this->hasDir($subdir)){
+            if (!$this->hasDir($subdir)) {
                 if ($can_throw) {
                     throw $e;
                 }
