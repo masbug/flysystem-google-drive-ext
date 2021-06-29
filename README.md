@@ -2,8 +2,8 @@
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://img.shields.io/travis/masbug/flysystem-google-drive-ext/master.svg?style=flat-square)](https://travis-ci.org/masbug/flysystem-google-drive-ext)
-[![StyleCI](https://styleci.io/repos/113434522/shield?branch=master)](https://styleci.io/repos/113434522)
+[![Build Status](https://img.shields.io/travis/masbug/flysystem-google-drive-ext/1.x.svg?style=flat-square)](https://travis-ci.org/masbug/flysystem-google-drive-ext)
+[![StyleCI](https://styleci.io/repos/113434522/shield?branch=1.x)](https://styleci.io/repos/113434522)
 [![Total Downloads](https://img.shields.io/packagist/dt/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 
 Google uses unique IDs for each folder and file. This makes it difficult to integrate with other storage services which use normal paths.
