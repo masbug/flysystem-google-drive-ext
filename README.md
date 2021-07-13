@@ -237,3 +237,5 @@ This adapter is based on wonderful [flysystem-google-drive](https://github.com/n
 It also contains an adaptation of [Google_Http_MediaFileUpload](https://github.com/google/google-api-php-client/blob/master/src/Google/Http/MediaFileUpload.php) by Google. I've added support for resumable uploads directly from streams (avoiding copying data to memory). 
 
 TeamDrive support was implemented by Maximilian Ruta - [Deltachaos](https://github.com/Deltachaos).
+
+Adapter rewrite for Flysystem V2 and various fixes were implemented by [erikn69](https://github.com/erikn69).
