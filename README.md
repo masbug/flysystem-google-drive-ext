@@ -1,8 +1,9 @@
 # Flysystem adapter for Google Drive with seamless virtual<=>display path translation
 
+[![Flysystem API version](https://img.shields.io/badge/Flysystem%20API-V2-blue?style=flat-square)](https://github.com/thephpleague/flysystem/)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://img.shields.io/travis/masbug/flysystem-google-drive-ext/2.x.svg?style=flat-square)](https://travis-ci.org/masbug/flysystem-google-drive-ext)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
+[![Build Status](https://img.shields.io/travis/com/masbug/flysystem-google-drive-ext/2.x.svg?style=flat-square)](https://travis-ci.com/masbug/flysystem-google-drive-ext)
 [![StyleCI](https://styleci.io/repos/113434522/shield?branch=2.x)](https://styleci.io/repos/113434522)
 [![Total Downloads](https://img.shields.io/packagist/dt/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 
@@ -238,4 +239,4 @@ It also contains an adaptation of [Google_Http_MediaFileUpload](https://github.c
 
 TeamDrive support was implemented by Maximilian Ruta - [Deltachaos](https://github.com/Deltachaos).
 
-Adapter rewrite for Flysystem V2 and various fixes were implemented by [erikn69](https://github.com/erikn69).
+Adapter rewrite for Flysystem V2 and various fixes were implemented by Erik Niebla - [erikn69](https://github.com/erikn69).
