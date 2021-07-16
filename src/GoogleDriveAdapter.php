@@ -1568,6 +1568,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             $this->uncacheId($path);
         }
     }
+
     protected function uncacheId($id)
     {
         if (empty($id)) {
