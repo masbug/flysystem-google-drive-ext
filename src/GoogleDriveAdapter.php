@@ -250,6 +250,16 @@ class GoogleDriveAdapter extends AbstractAdapter
     }
 
     /**
+     * Gets the service (Google_Service_Drive)
+     *
+     * @return object  Google_Service_Drive
+     */
+    public function getService()
+    {
+        return $this->service;
+    }
+
+    /**
      * Allow to forcefully clear the cache to enable long running process
      *
      * @return void
@@ -478,7 +488,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         }
         foreach ($ids as $id) {
             if ($id !== '' && ($file = $this->getFileObject($id))) {
-                if (($parents = $file->getParents())) {
+                if ($file->getParents()) {
                     $file = new Google_Service_Drive_DriveFile();
                     $file->setTrashed(true);
                     if ($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
@@ -1543,8 +1553,26 @@ class GoogleDriveAdapter extends AbstractAdapter
         return $complete_paths;
     }
 
+    public function uncacheFolder($path)
+    {
+        if ($this->useDisplayPaths) {
+            try {
+                $path_id = $this->getCachedPathId($path);
+                if (is_array($path_id) && !empty($path_id[0] ?? null)) {
+                    $this->uncacheId($path_id[0]);
+                }
+            } catch (FileNotFoundException $e) {
+                // unnecesary
+            }
+        }else{
+            $this->uncacheId($path);
+        }
+    }
     protected function uncacheId($id)
     {
+        if (empty($id)) {
+            return;
+        }
         $basePath = null;
         foreach ($this->cachedPaths as $path => $itemId) {
             if ($itemId === $id) {
@@ -2013,6 +2041,19 @@ class GoogleDriveAdapter extends AbstractAdapter
         } else {
             return $params;
         }
+    }
+
+    /**
+     * Enables empty google drive trash
+     *
+     * @return void
+     *
+     * @see https://developers.google.com/drive/v3/reference/files emptyTrash
+     * @see \Google_Service_Drive_Resource_Files
+     */
+    public function emptyTrash(array $params = [])
+    {
+        $this->service->files->emptyTrash($this->applyDefaultParams($params, 'files.emptyTrash'));
     }
 
     /**
