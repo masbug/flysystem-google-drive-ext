@@ -1567,7 +1567,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 if (is_array($path_id) && !empty($path_id[0] ?? null)) {
                     $this->uncacheId($path_id[0]);
                 }
-            } catch (FileNotFoundException $e) {
+            } catch (UnableToReadFile $e) {
                 // unnecesary
             }
         } else {
@@ -1792,7 +1792,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * @param string $displayPath
      * @param bool   $returnFirstItem return first item only
      * @return string[]|string
-     * @throws FileNotFoundException
+     * @throws UnableToReadFile
      */
     protected function makeFullVirtualPath($displayPath, $returnFirstItem = false)
     {
@@ -1874,7 +1874,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * @param bool   $makeFullVirtualPath
      * @param bool   $returnFirstItem
      * @return string[]|string Single itemId/path or array of them
-     * @throws FileNotFoundException
+     * @throws UnableToReadFile
      */
     protected function toVirtualPath($displayPath, $makeFullVirtualPath = true, $returnFirstItem = false)
     {
@@ -1918,7 +1918,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * Convert virtual path to display path
      * @param string $virtualPath
      * @return string
-     * @throws FileNotFoundException
+     * @throws UnableToReadFile
      */
     protected function toDisplayPath($virtualPath)
     {
