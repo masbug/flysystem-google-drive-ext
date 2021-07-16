@@ -271,6 +271,16 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
+     * Gets the service (Google_Service_Drive)
+     *
+     * @return object  Google_Service_Drive
+     */
+    public function getService()
+    {
+        return $this->service;
+    }
+
+    /**
      * Allow to forcefully clear the cache to enable long running process
      *
      * @return void
@@ -1549,8 +1559,27 @@ class GoogleDriveAdapter implements FilesystemAdapter
         return $complete_paths;
     }
 
+    public function uncacheFolder($path)
+    {
+        if ($this->useDisplayPaths) {
+            try {
+                $path_id = $this->getCachedPathId($path);
+                if (is_array($path_id) && !empty($path_id[0] ?? null)) {
+                    $this->uncacheId($path_id[0]);
+                }
+            } catch (FileNotFoundException $e) {
+                // unnecesary
+            }
+        } else {
+            $this->uncacheId($path);
+        }
+    }
+
     protected function uncacheId($id)
     {
+        if (empty($id)) {
+            return;
+        }
         $basePath = null;
         foreach ($this->cachedPaths as $path => $itemId) {
             if ($itemId === $id) {
@@ -2028,6 +2057,19 @@ class GoogleDriveAdapter implements FilesystemAdapter
         } else {
             return $params;
         }
+    }
+
+    /**
+     * Enables empty google drive trash
+     *
+     * @return void
+     *
+     * @see https://developers.google.com/drive/v3/reference/files emptyTrash
+     * @see \Google_Service_Drive_Resource_Files
+     */
+    public function emptyTrash(array $params = [])
+    {
+        $this->service->files->emptyTrash($this->applyDefaultParams($params, 'files.emptyTrash'));
     }
 
     /**
