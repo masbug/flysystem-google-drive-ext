@@ -1564,7 +1564,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             } catch (FileNotFoundException $e) {
                 // unnecesary
             }
-        }else{
+        } else {
             $this->uncacheId($path);
         }
     }
