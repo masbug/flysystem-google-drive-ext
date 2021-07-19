@@ -70,6 +70,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         'spaces'            => 'drive',
         'useHasDir'         => false,
         'useDisplayPaths'   => true,
+        'usePermanentDelete'   => false,
         'publishPermission' => [
             'type'     => 'anyone',
             'role'     => 'reader',
@@ -153,6 +154,13 @@ class GoogleDriveAdapter extends AbstractAdapter
     private $useHasDir = false;
 
     /**
+     * Permanent delete files and directories, avoid setTrashed
+     *
+     * @var bool
+     */
+    private $usePermanentDelete = false;
+
+    /**
      * Options array
      *
      * @var array
@@ -206,6 +214,7 @@ class GoogleDriveAdapter extends AbstractAdapter
 
         $this->spaces = $this->options['spaces'];
         $this->useHasDir = $this->options['useHasDir'];
+        $this->usePermanentDelete = $this->options['usePermanentDelete'];
         $this->publishPermission = $this->options['publishPermission'];
         $this->useDisplayPaths = $this->options['useDisplayPaths'];
         $this->optParams = $this->cleanOptParameters($this->options['parameters']);
@@ -489,11 +498,18 @@ class GoogleDriveAdapter extends AbstractAdapter
         foreach ($ids as $id) {
             if ($id !== '' && ($file = $this->getFileObject($id))) {
                 if ($file->getParents()) {
-                    $file = new Google_Service_Drive_DriveFile();
-                    $file->setTrashed(true);
-                    if ($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
+                    if ($this->usePermanentDelete && $this->service->files->delete($id, $this->applyDefaultParams([], 'files.delete'))) {
                         $this->uncacheId($id);
                         $deleted = true;
+                    } else {
+                        if (!$this->usePermanentDelete) {
+                            $file = new Google_Service_Drive_DriveFile();
+                            $file->setTrashed(true);
+                            if ($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
+                                $this->uncacheId($id);
+                                $deleted = true;
+                            }
+                        }
                     }
                 }
             }
@@ -516,23 +532,11 @@ class GoogleDriveAdapter extends AbstractAdapter
                 $ids = $this->toVirtualPath($path, false);
                 $deleted = $this->delete_by_id($ids);
             } catch (\Exception $e) {
+                //Unnecesary
             }
         } else {
-            if (($file = $this->getFileObject($path))) {
-                [$parentId, $id] = $this->splitPath($path);
-                if (($parents = $file->getParents())) {
-                    $file = new Google_Service_Drive_DriveFile();
-                    $opts = [];
-                    if (count($parents) > 1) {
-                        $opts['removeParents'] = $parentId;
-                    } else {
-                        $file->setTrashed(true);
-                    }
-                    if ($this->service->files->update($id, $file, $this->applyDefaultParams($opts, 'files.update'))) {
-                        $this->uncacheId($id);
-                        $deleted = true;
-                    }
-                }
+            if ($file = $this->getFileObject($path)) {
+                $deleted = $this->delete_by_id($file->getId());
             }
         }
 
@@ -757,6 +761,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             try {
                 $vp = $this->toVirtualPath($directory);
             } catch (\Exception $e) {
+                //Unnecesary
             }
             $elapsed = (microtime(true) - $time) * 1000.0;
             if (!is_array($vp)) {
