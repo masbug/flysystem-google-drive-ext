@@ -37,7 +37,7 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
             ) {
                 self::markTestSkipped("No google service config found in {$file}.");
             }
-            $options = [];
+            $options = ['usePermanentDelete' => true];
             if (!empty($config['teamDriveId'] ?? null)) {
                 $options['teamDriveId'] = $config['teamDriveId'];
             }
