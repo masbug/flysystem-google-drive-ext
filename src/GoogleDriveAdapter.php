@@ -286,6 +286,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function getService()
     {
+        $this->refreshToken();
         return $this->service;
     }
 
@@ -300,6 +301,23 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $this->requestedIds = [];
         $this->cacheFileObjects = [];
         $this->cacheHasDirs = [];
+    }
+
+    /**
+     * Allow to refresh tokens to enable long running process
+     *
+     * @return void
+     */
+    public function refreshToken()
+    {
+        $client = $this->service->getClient();
+        if ($client->isAccessTokenExpired()) {
+            if ($client->isUsingApplicationDefaultCredentials()) {
+                $client->refreshTokenWithAssertion();
+            } else {
+                $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+            }
+        }
     }
 
     protected function cleanOptParameters($parameters)
@@ -415,6 +433,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function copy(string $location, string $destination, Config $config): void
     {
+        $this->refreshToken();
         $path = $this->prefixer->prefixPath($location);
         $newpath = $this->prefixer->prefixPath($destination);
         if ($this->useDisplayPaths) {
@@ -503,6 +522,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function delete_by_id($ids)
     {
+        $this->refreshToken();
         $deleted = false;
         if (!is_array($ids)) {
             $ids = [$ids];
@@ -614,6 +634,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function read(string $location): string
     {
+        $this->refreshToken();
         $path = $this->prefixer->prefixPath($location);
         if ($this->useDisplayPaths) {
             $fileId = $this->toVirtualPath($path, false, true);
@@ -632,6 +653,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function readStream(string $location)
     {
+        $this->refreshToken();
         $path = $this->prefixer->prefixPath($location);
         if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, false, true);
@@ -744,6 +766,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function listContents(string $directory, bool $recursive): iterable
     {
+        $this->refreshToken();
         $path = $this->prefixer->prefixPath($directory);
         if ($this->useDisplayPaths) {
             $time = microtime(true);
@@ -934,6 +957,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function setHasDir($targets, $object)
     {
+        $this->refreshToken();
         $service = $this->service;
         $client = $service->getClient();
         $gFiles = $service->files;
@@ -974,6 +998,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function publish($path)
     {
+        $this->refreshToken();
         if (($file = $this->getFileObject($path))) {
             $permissions = $file->getPermissions();
             try {
@@ -1008,6 +1033,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function unPublish($path)
     {
+        $this->refreshToken();
         if (($file = $this->getFileObject($path))) {
             $permissions = $file->getPermissions();
             try {
@@ -1131,6 +1157,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function getItems($dirname, $recursive = false, $maxResults = 0, $query = '')
     {
+        $this->refreshToken();
         [, $itemId] = $this->splitPath($dirname);
 
         $maxResults = min($maxResults, 1000);
@@ -1204,7 +1231,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         if (isset($this->cacheFileObjects[$itemId])) {
             return $this->cacheFileObjects[$itemId];
         }
-
+        $this->refreshToken();
         $service = $this->service;
         $client = $service->getClient();
 
@@ -1291,6 +1318,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function createDir($name, $parentId)
     {
+        $this->refreshToken();
         $file = new Google_Service_Drive_DriveFile();
         $file->setName($name);
         $file->setParents([
@@ -1317,6 +1345,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     protected function upload($path, $contents, Config $config, $updating = null)
     {
+        $this->refreshToken();
         [$parentId, $fileName] = $this->splitPath($path);
         $mime = $config->get('mimetype');
         $file = new Google_Service_Drive_DriveFile();
@@ -1427,6 +1456,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
         }
         if (!empty($fetch) || $checkDir) {
+            $this->refreshToken();
             $service = $this->service;
             $client = $service->getClient();
 
@@ -2072,6 +2102,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function emptyTrash(array $params = [])
     {
+        $this->refreshToken();
         $this->service->files->emptyTrash($this->applyDefaultParams($params, 'files.emptyTrash'));
     }
 
