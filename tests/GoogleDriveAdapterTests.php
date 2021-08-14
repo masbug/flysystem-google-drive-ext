@@ -139,7 +139,7 @@ class GoogleDriveAdapterTests extends TestCase
         $this->assertTrue($adapter->has($destination));
         // copy of content
         $contents = $adapter->read($destination);
-        $this->assertEquals('content', is_array($contents) && isset($contents['contents']) ? $contents['contents'] : '', "The content of file {$destination} is wrong");
+        $this->assertEquals('content', $contents['contents'] ?? '', "The content of file {$destination} is wrong");
         // copy of visibility
         $public = $adapter->getVisibility($destination);
         $this->assertIsArray($public);
@@ -171,7 +171,7 @@ class GoogleDriveAdapterTests extends TestCase
         $this->assertEquals('public', $object['visibility']);
         // content
         $contents = $adapter->read($destination);
-        $this->assertEquals('content', is_array($contents) && isset($contents['contents']) ? $contents['contents'] : '', "The content of file {$destination} is wrong");
+        $this->assertEquals('content', $contents['contents'] ?? '', "The content of file {$destination} is wrong");
     }
 
     /**
@@ -435,7 +435,7 @@ class GoogleDriveAdapterTests extends TestCase
             $adapter->write($path, 'contents', new Config());
             $contents = $adapter->read($path);
 
-            $this->assertEquals('contents', isset($contents['contents']) ? $contents['contents'] : '', $msg);
+            $this->assertEquals('contents', $contents['contents'] ?? '', $msg);
         }
     }
 

@@ -265,6 +265,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function getService()
     {
+        $this->refreshToken();
         return $this->service;
     }
 
@@ -279,6 +280,23 @@ class GoogleDriveAdapter extends AbstractAdapter
         $this->requestedIds = [];
         $this->cacheFileObjects = [];
         $this->cacheHasDirs = [];
+    }
+
+    /**
+     * Allow to refresh tokens to enable long running process
+     *
+     * @return void
+     */
+    public function refreshToken()
+    {
+        $client = $this->service->getClient();
+        if ($client->isAccessTokenExpired()) {
+            if ($client->isUsingApplicationDefaultCredentials()) {
+                $client->refreshTokenWithAssertion();
+            } else {
+                $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+            }
+        }
     }
 
     protected function cleanOptParameters($parameters)
@@ -380,6 +398,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function rename($path, $newpath)
     {
+        $this->refreshToken();
         if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, true, true);
             $newpathDir = self::dirname($newpath);
@@ -438,6 +457,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function copy($path, $newpath)
     {
+        $this->refreshToken();
         if ($this->useDisplayPaths) {
             $srcId = $this->toVirtualPath($path, false, true);
             $newpathDir = self::dirname($newpath);
@@ -491,6 +511,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function delete_by_id($ids)
     {
+        $this->refreshToken();
         $deleted = false;
         if (!is_array($ids)) {
             $ids = [$ids];
@@ -623,6 +644,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function read($path)
     {
+        $this->refreshToken();
         if ($this->useDisplayPaths) {
             $fileId = $this->toVirtualPath($path, false, true);
         } else {
@@ -643,6 +665,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function readStream($path)
     {
+        $this->refreshToken();
         if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, false, true);
         }
@@ -755,6 +778,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function listContents($directory = '', $recursive = false)
     {
+        $this->refreshToken();
         if ($this->useDisplayPaths) {
             $time = microtime(true);
             $vp = [];
@@ -908,6 +932,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function setHasDir($targets, $object)
     {
+        $this->refreshToken();
         $service = $this->service;
         $client = $service->getClient();
         $gFiles = $service->files;
@@ -970,6 +995,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function publish($path)
     {
+        $this->refreshToken();
         if (($file = $this->getFileObject($path))) {
             if ($this->getRawVisibility($path) === AdapterInterface::VISIBILITY_PUBLIC) {
                 return true;
@@ -997,6 +1023,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function unPublish($path)
     {
+        $this->refreshToken();
         if (($file = $this->getFileObject($path))) {
             $permissions = $file->getPermissions();
             try {
@@ -1125,6 +1152,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function getItems($dirname, $recursive = false, $maxResults = 0, $query = '')
     {
+        $this->refreshToken();
         [, $itemId] = $this->splitPath($dirname);
 
         $maxResults = min($maxResults, 1000);
@@ -1198,7 +1226,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         if (isset($this->cacheFileObjects[$itemId])) {
             return $this->cacheFileObjects[$itemId];
         }
-
+        $this->refreshToken();
         $service = $this->service;
         $client = $service->getClient();
 
@@ -1285,6 +1313,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function createDirectory($name, $parentId)
     {
+        $this->refreshToken();
         $file = new Google_Service_Drive_DriveFile();
         $file->setName($name);
         $file->setParents([
@@ -1311,6 +1340,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     protected function upload($path, $contents, Config $config, $updating = null)
     {
+        $this->refreshToken();
         [$parentId, $fileName] = $this->splitPath($path);
         $mime = $config->get('mimetype');
         $file = new Google_Service_Drive_DriveFile();
@@ -1423,6 +1453,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             }
         }
         if (!empty($fetch) || $checkDir) {
+            $this->refreshToken();
             $service = $this->service;
             $client = $service->getClient();
 
@@ -2059,6 +2090,7 @@ class GoogleDriveAdapter extends AbstractAdapter
      */
     public function emptyTrash(array $params = [])
     {
+        $this->refreshToken();
         $this->service->files->emptyTrash($this->applyDefaultParams($params, 'files.emptyTrash'));
     }
 
