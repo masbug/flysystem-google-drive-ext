@@ -23,7 +23,7 @@ namespace Masbug\Flysystem;
 
 use Google_Client;
 use Google_Http_REST;
-use GuzzleHttp\Psr7;
+use GuzzleHttp\Psr7\LimitStream;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
 use Psr\Http\Message\RequestInterface;
@@ -72,18 +72,19 @@ class StreamableUpload
 
     /**
      * Result code from last HTTP call
+     *
      * @var int
      */
     private $httpResultCode;
 
     /**
-     * @param Google_Client                        $client
-     * @param RequestInterface                     $request
-     * @param string                               $mimeType
-     * @param null|string|resource|StreamInterface $data      Data you want to upload
-     * @param bool                                 $resumable
-     * @param bool|int                             $chunkSize File will be uploaded in chunks of this many bytes.
-     *                                                        Only used if resumable=True.
+     * @param  Google_Client  $client
+     * @param  RequestInterface  $request
+     * @param  string  $mimeType
+     * @param  null|string|resource|StreamInterface  $data  Data you want to upload
+     * @param  bool  $resumable
+     * @param  bool|int  $chunkSize  File will be uploaded in chunks of this many bytes.
+     *                               Only used if resumable=True.
      */
     public function __construct(
         Google_Client $client,
@@ -96,7 +97,15 @@ class StreamableUpload
         $this->client = $client;
         $this->request = $request;
         $this->mimeType = $mimeType;
-        $this->data = $data !== null ? Psr7\stream_for($data) : null;
+        if ($data !== null) {
+            if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
+                $this->data = /** @scrutinizer ignore-call */ \GuzzleHttp\Psr7\stream_for($data);
+            } else {
+                $this->data = \GuzzleHttp\Psr7\Utils::streamFor($data);
+            }
+        } else {
+            $this->data = null;
+        }
         $this->resumable = $resumable;
         $this->chunkSize = is_bool($chunkSize) ? 0 : $chunkSize;
         $this->progress = 0;
@@ -113,7 +122,8 @@ class StreamableUpload
 
     /**
      * Set the size of the file that is being uploaded.
-     * @param int $size file size in bytes
+     *
+     * @param  int  $size  file size in bytes
      */
     public function setFileSize($size)
     {
@@ -122,6 +132,7 @@ class StreamableUpload
 
     /**
      * Return the progress on the upload
+     *
      * @return int progress in bytes uploaded.
      */
     public function getProgress()
@@ -131,8 +142,9 @@ class StreamableUpload
 
     /**
      * Send the next part of the file to upload.
-     * @param null|bool|string|StreamInterface $chunk The next set of bytes to send. If stream is provided then chunkSize is ignored.
-     *                                                If false it will use $this->data set at construct time.
+     *
+     * @param  null|bool|string|StreamInterface  $chunk  The next set of bytes to send. If stream is provided then chunkSize is ignored.
+     *                                                   If false it will use $this->data set at construct time.
      * @return false|mixed
      */
     public function nextChunk($chunk = false)
@@ -150,9 +162,13 @@ class StreamableUpload
             if ($this->data->eof()) {
                 return true; // finished
             }
-            $chunk = new Psr7\LimitStream($this->data, $this->chunkSize, $this->data->tell());
+            $chunk = new LimitStream($this->data, $this->chunkSize, $this->data->tell());
         } else {
-            $chunk = Psr7\stream_for($chunk);
+            if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
+                $chunk = /** @scrutinizer ignore-call */ \GuzzleHttp\Psr7\stream_for($chunk);
+            } else {
+                $chunk = \GuzzleHttp\Psr7\Utils::streamFor($chunk);
+            }
         }
         $size = $chunk->getSize();
 
@@ -183,6 +199,7 @@ class StreamableUpload
 
     /**
      * Return the HTTP result code from the last call made.
+     *
      * @return int code
      */
     public function getHttpResultCode()
@@ -194,7 +211,7 @@ class StreamableUpload
      * Sends a PUT-Request to google drive and parses the response,
      * setting the appropriate variables from the response()
      *
-     * @param RequestInterface $request the request which will be sent
+     * @param  RequestInterface  $request  the request which will be sent
      * @return false|mixed false when the upload is unfinished or the decoded http response
      */
     private function makePutRequest(RequestInterface $request)
@@ -226,7 +243,8 @@ class StreamableUpload
 
     /**
      * Resume a previously unfinished upload
-     * @param string $resumeUri The resume-URI of the unfinished, resumable upload.
+     *
+     * @param  string  $resumeUri  The resume-URI of the unfinished, resumable upload.
      * @return false|mixed
      */
     public function resume($resumeUri)
@@ -286,14 +304,19 @@ class StreamableUpload
                     $related .= "--$boundary\r\n";
                     $related .= "Content-Type: $mimeType\r\n";
                     $related .= "Content-Transfer-Encoding: base64\r\n";
-                    $related .= "\r\n".base64_encode($this->data)."\r\n";
+                    $related .= "\r\n".base64_encode(/** @scrutinizer ignore-type */ $this->data)."\r\n";
                     $related .= "--$boundary--";
                     $postBody = $related;
                 }
             }
         }
+        if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
+            $stream = /** @scrutinizer ignore-call */ \GuzzleHttp\Psr7\stream_for($postBody);
+        } else {
+            $stream = \GuzzleHttp\Psr7\Utils::streamFor($postBody);
+        }
 
-        $request = $request->withBody(Psr7\stream_for($postBody));
+        $request = $request->withBody($stream);
 
         if (isset($contentType) && $contentType) {
             $request = $request->withHeader('content-type', $contentType);
@@ -307,6 +330,7 @@ class StreamableUpload
      * - resumable (UPLOAD_RESUMABLE_TYPE)
      * - media (UPLOAD_MEDIA_TYPE)
      * - multipart (UPLOAD_MULTIPART_TYPE)
+     *
      * @param $meta
      * @return string
      * @visible for testing
@@ -352,7 +376,7 @@ class StreamableUpload
             }
         }
 
-        $response = $this->client->execute($this->request, false);
+        $response = $this->client->execute($this->request, /** @scrutinizer ignore-type */ false);
         $location = $response->getHeaderLine('location');
         $code = $response->getStatusCode();
 

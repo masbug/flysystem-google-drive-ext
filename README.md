@@ -86,21 +86,18 @@ $contents = $fs->listContents('MyFolder', true /* is_recursive */);
 $local_filepath = '/home/user/downloads/file_to_upload.ext';
 $remote_filepath = 'MyFolder/file.ext';
 
-$localAdapter = new League\Flysystem\Local\LocalFilesystemAdapter();
-$localfs = new \League\Flysystem\Filesystem($localAdapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]));
+$localAdapter = new \League\Flysystem\Local\LocalFilesystemAdapter('/');
+$localfs = new \League\Flysystem\Filesystem($localAdapter, [\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]);
 
 try {
     $time = Carbon::now();
-    $ret = $fs->writeStream($remote_filepath, $localfs->readStream($local_filepath));
-    if($ret) {
-        $speed = filesize($local_filepath) / (float)$time->diffInSeconds();
-        echo 'Elapsed time: '.$time->diffForHumans(null, true);
-        echo 'Speed: '. number_format($speed/1024,2) . ' KB/s';
-    } else {
-        echo 'Upload FAILED!';
-    }
-} catch(\League\Flysystem\UnableToReadFile $e) {
-    echo 'Source doesn\'t exist!';
+    $fs->writeStream($remote_filepath, $localfs->readStream($local_filepath), new \League\Flysystem\Config());
+
+    $speed = !(float)$time->diffInSeconds() ? 0 :filesize($local_filepath) / (float)$time->diffInSeconds();
+    echo 'Elapsed time: '.$time->diffForHumans(null, true).PHP_EOL;
+    echo 'Speed: '. number_format($speed/1024,2) . ' KB/s'.PHP_EOL;
+} catch(\League\Flysystem\UnableToWriteFile $e) {
+    echo 'UnableToWriteFile!'.PHP_EOL.$e->getMessage();
 }
 
 // NOTE: Remote folders are automatically created. 
@@ -112,21 +109,18 @@ try {
 $remote_filepath = 'MyFolder/file.ext';
 $local_filepath = '/home/user/downloads/file.ext';
 
-$localAdapter = new League\Flysystem\Local\LocalFilesystemAdapter();
-$localfs = new \League\Flysystem\Filesystem($localAdapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE])));
+$localAdapter = new \League\Flysystem\Local\LocalFilesystemAdapter('/');
+$localfs = new \League\Flysystem\Filesystem($localAdapter, [\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]);
 
 try {
     $time = Carbon::now();
-    $ret = $localfs->writeStream($local_filepath, $fs->readStream($remote_filepath));
-    if($ret) {
-        $speed = filesize($local_filepath) / (float)$time->diffInSeconds();
-        echo 'Elapsed time: '.$time->diffForHumans(null, true);
-        echo 'Speed: '. number_format($speed/1024,2) . ' KB/s';
-    } else {
-        echo 'Downloaded FAILED!';
-    }
-} catch(\League\Flysystem\UnableToReadFile $e) {
-    echo 'Source doesn\'t exist!';
+    $localfs->writeStream($local_filepath, $fs->readStream($remote_filepath), new \League\Flysystem\Config());
+
+    $speed = !(float)$time->diffInSeconds() ? 0 :filesize($local_filepath) / (float)$time->diffInSeconds();
+    echo 'Elapsed time: '.$time->diffForHumans(null, true).PHP_EOL;
+    echo 'Speed: '. number_format($speed/1024,2) . ' KB/s'.PHP_EOL;
+} catch(\League\Flysystem\UnableToWriteFile $e) {
+    echo 'UnableToWriteFile!'.PHP_EOL.$e->getMessage();
 }
 ```
 
@@ -227,7 +221,7 @@ $googleDisk = Storage::disk('google');
 //$secondDisk = Storage::disk('second_google'); //others disks
 ```
 
-Keep in mind that there can only be one default cloud storage drive, defined by `FILESYSTEM_CLOUD` in your `.env` (or config) file. If you set it to `main_google`, that will be the cloud drive:
+Keep in mind that there can only be one default cloud storage drive, defined by `FILESYSTEM_CLOUD` in your `.env` (or config) file. If you set it to `google`, that will be the cloud drive:
 ```php
 Storage::cloud(); // refers to Storage::disk('google')
 ```
@@ -241,7 +235,7 @@ Concurrent use of same Google Drive might lead to unexpected problems due to hea
 ## Acknowledgements
 This adapter is based on wonderful [flysystem-google-drive](https://github.com/nao-pon/flysystem-google-drive) by Naoki Sawada.
 
-It also contains an adaptation of [Google_Http_MediaFileUpload](https://github.com/google/google-api-php-client/blob/master/src/Google/Http/MediaFileUpload.php) by Google. I've added support for resumable uploads directly from streams (avoiding copying data to memory). 
+It also contains an adaptation of [Google_Http_MediaFileUpload](https://github.com/googleapis/google-api-php-client/blob/master/src/Http/MediaFileUpload.php) by Google. I've added support for resumable uploads directly from streams (avoiding copying data to memory).
 
 TeamDrive support was implemented by Maximilian Ruta - [Deltachaos](https://github.com/Deltachaos).
 
