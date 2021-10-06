@@ -15,8 +15,14 @@ For example: virtual path `/Xa3X9GlR6EmbnY1RLVTk5VUtOVkk/0B3X9GlR6EmbnY1RLVTk5VU
 
 ## Installation
 
+- For **Flysystem V2** or **Laravel >= 9.x.x**
 ```bash
 composer require masbug/flysystem-google-drive-ext
+```
+
+- For **Flysystem V1** or **Laravel <= 8.x.x** use 1.x.x version of the package
+```bash
+composer require masbug/flysystem-google-drive-ext:"^1.0.0"
 ```
 
 ## Getting Google Keys
