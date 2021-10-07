@@ -9,7 +9,6 @@ use Google_Service_Drive;
 use Google_Service_Drive_DriveFile;
 use Google_Service_Drive_FileList;
 use Google_Service_Drive_Permission;
-use GuzzleHttp\Psr7;
 use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
@@ -223,9 +222,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     /**
      * GoogleDriveAdapter constructor.
-     * @param Google_Service_Drive $service
-     * @param string|null          $root
-     * @param array                $options
+     *
+     * @param  Google_Service_Drive  $service
+     * @param  string|null  $root
+     * @param  array  $options
      */
     public function __construct(Google_Service_Drive $service, $root = null, $options = [])
     {
@@ -282,7 +282,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Gets the service (Google_Service_Drive)
      *
-     * @return object  Google_Service_Drive
+     * @return object Google_Service_Drive
      */
     public function getService()
     {
@@ -313,7 +313,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $client = $this->service->getClient();
         if ($client->isAccessTokenExpired()) {
             if ($client->isUsingApplicationDefaultCredentials()) {
-                $client->refreshTokenWithAssertion();
+                $client->fetchAccessTokenWithAssertion();
             } else {
                 $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
             }
@@ -404,8 +404,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
 
         try {
-            $result = $this->upload($virtual_path, $contents, $config, $updating);
+            $result = $this->upload(/** @scrutinizer ignore-type */ $virtual_path, $contents, $config, $updating);
         } catch (Throwable $e) {
+            // Unnecesary
         }
         if (!isset($result) || !$result) {
             throw UnableToWriteFile::atLocation($path, 'Not able to write the file');
@@ -462,7 +463,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $newParentId
         ]);
 
-        $newFile = $this->service->files->copy($srcId, $file, $this->applyDefaultParams([
+        $newFile = $this->service->files->copy(/** @scrutinizer ignore-type */ $srcId, $file, $this->applyDefaultParams([
             'fields' => self::FETCHFIELDS_GET
         ], 'files.copy'));
 
@@ -517,7 +518,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * @param string[]|string $ids
+     * Delete an array of google file ids
+     *
+     * @param  string[]|string  $ids
      * @return bool
      */
     protected function delete_by_id($ids)
@@ -642,7 +645,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             [, $fileId] = $this->splitPath($path);
         }
         /** @var RequestInterface $response */
-        if (($response = $this->service->files->get($fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
+        if (($response = $this->service->files->get(/** @scrutinizer ignore-type */ $fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
             return (string)$response->getBody();
         }
         throw UnableToReadFile::fromLocation($path, 'Unable To Read File');
@@ -671,7 +674,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 'token' => '',
                 'cookies' => []
             ];
-            if (($file = $this->getFileObject($path))) {
+            if (($file = $this->getFileObject(/** @scrutinizer ignore-type */ $path))) {
                 if ($file->getMimeType() === self::DIRMIME) {
                     throw UnableToReadFile::fromLocation($location, 'Unable To Read File');
                 }
@@ -794,8 +797,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Get metadata from file/dir
      *
-     * @param string $path itemId path
-     *
+     * @param  string  $path  itemId path
      * @return
      */
     public function getMetadata(string $path)
@@ -803,7 +805,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, true, true);
         }
-        if (($obj = $this->getFileObject($path, true))) {
+        if (($obj = $this->getFileObject(/** @scrutinizer ignore-type */ $path, true))) {
             if ($obj instanceof Google_Service_Drive_DriveFile) {
                 return $this->normaliseObject($obj, self::dirname($path));
             }
@@ -819,6 +821,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         try {
             $fileAttributes = $this->getMetadata($prefixedPath);
         } catch (Throwable $exception) {
+            // Unnecesary
         }
 
         if (!isset($fileAttributes) || !$fileAttributes instanceof FileAttributes) {
@@ -867,9 +870,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if ($this->useDisplayPaths) {
                 $path = $this->toVirtualPath($path, false, true);
             }
-            $result = ($visibility === Visibility::PUBLIC) ? $this->publish($path) : $this->unPublish($path);
+            $result = ($visibility === Visibility::PUBLIC) ? $this->publish(/** @scrutinizer ignore-type */ $path) : $this->unPublish(/** @scrutinizer ignore-type */ $path);
         } catch (Throwable $e) {
-            throw UnableToSetVisibility::atLocation($path, 'Error setting visibility', $e);
+            throw UnableToSetVisibility::atLocation(/** @scrutinizer ignore-type */ $path, 'Error setting visibility', $e);
         }
         if (!$result) {
             $className = Visibility::class;
@@ -890,8 +893,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if ($this->useDisplayPaths) {
                 $path = $this->toVirtualPath($path, false, true);
             }
-            $file = $this->getFileObject($path);
+            $file = $this->getFileObject(/** @scrutinizer ignore-type */ $path);
         } catch (Throwable $e) {
+            // Unnecesary
         }
         if (!isset($file) || !$file) {
             throw UnableToRetrieveMetadata::visibility($location, '', new \Exception('Error finding the file'));
@@ -904,7 +908,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 break;
             }
         }
-        return new FileAttributes($path, null, $visibility);
+        return new FileAttributes(/** @scrutinizer ignore-type */ $path, null, $visibility);
     }
 
     // /////////////////- ORIGINAL METHODS -///////////////////
@@ -912,17 +916,16 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Get contents parmanent URL
      *
-     * @param string $path itemId path
-     *
-     * @return string|false
+     * @param  string  $path  itemId path
+     * @param  string  $path  itemId path
      */
     public function getUrl($path)
     {
         if ($this->useDisplayPaths) {
             $path = $this->toVirtualPath($path, false, true);
         }
-        if ($this->publish($path)) {
-            $obj = $this->getFileObject($path);
+        if ($this->publish(/** @scrutinizer ignore-type */ $path)) {
+            $obj = $this->getFileObject(/** @scrutinizer ignore-type */ $path);
             if (($url = $obj->getWebContentLink())) {
                 return str_replace('export=download', 'export=media', $url);
             }
@@ -936,8 +939,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Has child directory
      *
-     * @param string $path itemId path
-     *
+     * @param  string  $path  itemId path
      * @return array
      */
     public function hasDir($path)
@@ -951,8 +953,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Do cache cacheHasDirs with batch request
      *
-     * @param array $targets [[path => id],...]
-     * @param array $object
+     * @param  array  $targets  [[path => id],...]
+     * @param  array  $object
      * @return array
      */
     protected function setHasDir($targets, $object)
@@ -992,8 +994,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Publish specified path item
      *
-     * @param string $path itemId path
-     *
+     * @param  string  $path  itemId path
      * @return bool
      */
     protected function publish($path)
@@ -1027,8 +1028,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Un-publish specified path item
      *
-     * @param string $path itemId path
-     *
+     * @param  string  $path  itemId path
      * @return bool
      */
     protected function unPublish($path)
@@ -1055,8 +1055,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Path splits to dirId, fileId or newName
      *
-     * @param string $path
-     * @param bool   $getParentId True => return only parent id, False => return full path (basically the same as dirname($path))
+     * @param  string  $path
+     * @param  bool  $getParentId  True => return only parent id, False => return full path (basically the same as dirname($path))
      * @return array [ $dirId , $fileId|newName ]
      */
     protected function splitPath($path, $getParentId = true)
@@ -1086,8 +1086,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * Item name splits to filename and extension
      * This function supported include '/' in item name
      *
-     * @param string $name
-     *
+     * @param  string  $name
      * @return array [ 'filename' => $filename , 'extension' => $extension ]
      */
     protected function splitFileExtension($name)
@@ -1101,9 +1100,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Get normalised files array from Google_Service_Drive_DriveFile
      *
-     * @param Google_Service_Drive_DriveFile $object
-     * @param string                         $dirname Parent directory itemId path
-     *
+     * @param  Google_Service_Drive_DriveFile  $object
+     * @param  string  $dirname  Parent directory itemId path
      * @return \League\Flysystem\StorageAttributes Normalised files array
      */
     protected function normaliseObject(Google_Service_Drive_DriveFile $object, $dirname)
@@ -1122,7 +1120,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 }
             }
         } catch (Exception $e) {
-            // unnecesary
+            // Unnecesary
         }
         if ($this->useDisplayPaths) {
             $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
@@ -1146,13 +1144,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * Get items array of target dirctory
+     * Get items array of target directory
      *
-     * @param string $dirname itemId path
-     * @param bool   $recursive
-     * @param int    $maxResults
-     * @param string $query
-     *
+     * @param  string  $dirname  itemId path
+     * @param  bool  $recursive
+     * @param  int  $maxResults
+     * @param  string  $query
      * @return array Items array
      */
     protected function getItems($dirname, $recursive = false, $maxResults = 0, $query = '')
@@ -1220,9 +1217,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Get file oblect Google_Service_Drive_DriveFile
      *
-     * @param string $path     itemId path
-     * @param bool   $checkDir do check hasdir
-     *
+     * @param  string  $path  itemId path
+     * @param  bool  $checkDir  do check hasdir
      * @return Google_Service_Drive_DriveFile|null
      */
     public function getFileObject($path, $checkDir = false)
@@ -1285,8 +1281,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Get download url
      *
-     * @param Google_Service_Drive_DriveFile $file
-     *
+     * @param  Google_Service_Drive_DriveFile  $file
      * @return string|false
      */
     protected function getDownloadUrl($file)
@@ -1309,11 +1304,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * Create dirctory
+     * Create directory
      *
-     * @param string $name
-     * @param string $parentId
-     *
+     * @param  string  $name
+     * @param  string  $parentId
      * @return Google_Service_Drive_DriveFile|null
      */
     protected function createDir($name, $parentId)
@@ -1337,10 +1331,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Upload|Update item
      *
-     * @param string          $path
-     * @param string|resource $contents
-     * @param Config          $config
-     * @param bool|null       $updating If null then we check for existence of the file
+     * @param  string  $path
+     * @param  string|resource  $contents
+     * @param  Config  $config
+     * @param  bool|null  $updating  If null then we check for existence of the file
      * @return \League\Flysystem\StorageAttributes|false item info
      */
     protected function upload($path, $contents, Config $config, $updating = null)
@@ -1372,7 +1366,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $file->setMimeType($mime);
 
         /** @var StreamInterface $stream */
-        $stream = Psr7\stream_for($contents);
+        if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
+            $stream = /** @scrutinizer ignore-call */ \GuzzleHttp\Psr7\stream_for($contents);
+        } else {
+            $stream = \GuzzleHttp\Psr7\Utils::streamFor($contents);
+        }
         $size = $stream->getSize();
 
         if ($size <= self::MAX_CHUNK_SIZE) {
@@ -1439,8 +1437,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * @param array $ids
-     * @param bool $checkDir
+     * @param  array  $ids
+     * @param  bool  $checkDir
      * @return array
      */
     protected function getObjects($ids, $checkDir = false)
@@ -1822,9 +1820,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     /**
      * Create a full virtual path from cache
-     * @param string $displayPath
-     * @param bool   $returnFirstItem return first item only
+     *
+     * @param  string  $displayPath
+     * @param  bool  $returnFirstItem  return first item only
      * @return string[]|string
+     *
      * @throws UnableToReadFile
      */
     protected function makeFullVirtualPath($displayPath, $returnFirstItem = false)
@@ -1903,10 +1903,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     /**
      * Convert display path to virtual path or just id
-     * @param string $displayPath
-     * @param bool   $makeFullVirtualPath
-     * @param bool   $returnFirstItem
+     *
+     * @param  string  $displayPath
+     * @param  bool  $makeFullVirtualPath
+     * @param  bool  $returnFirstItem
      * @return string[]|string Single itemId/path or array of them
+     *
      * @throws UnableToReadFile
      */
     protected function toVirtualPath($displayPath, $makeFullVirtualPath = true, $returnFirstItem = false)
@@ -1949,8 +1951,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     /**
      * Convert virtual path to display path
-     * @param string $virtualPath
+     *
+     * @param  string  $virtualPath
      * @return string
+     *
      * @throws UnableToReadFile
      */
     protected function toDisplayPath($virtualPath)
@@ -2039,8 +2043,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * @param string|string[] $id
-     * @param bool            $reset_all
+     * @param  string|string[]  $id
+     * @param  bool  $reset_all
      */
     protected function resetRequest($id, $reset_all = false)
     {
@@ -2129,10 +2133,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Selects Team Drive to operate by changing default parameters
      *
+     * @param  string  $teamDriveId  Team Drive id
+     * @param  string  $corpora  Corpora value for files.list
      * @return void
-     *
-     * @param   string   $teamDriveId   Team Drive id
-     * @param   string   $corpora       Corpora value for files.list
      *
      * @see https://developers.google.com/drive/v3/reference/files
      * @see https://developers.google.com/drive/v3/reference/files/list
@@ -2158,9 +2161,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Guess MIME Type based on the path of the file and it's content.
      *
-     * @param string          $path
-     * @param string|resource $content
-     *
+     * @param  string  $path
+     * @param  string|resource  $content
      * @return string|null MIME Type or NULL if no extension detected
      */
     public static function guessMimeType($path, $content)
@@ -2178,8 +2180,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Normalize a dirname return value.
      *
-     * @param string $dirname
-     *
+     * @param  string  $dirname
      * @return string normalized dirname
      */
     public static function normalizeDirname($dirname)
