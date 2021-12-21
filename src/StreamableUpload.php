@@ -88,7 +88,7 @@ class StreamableUpload
      *                               Only used if resumable=True.
      */
     public function __construct(
-        Client|Google_Client $client,
+        $client,
         RequestInterface $request,
         $mimeType,
         $data,

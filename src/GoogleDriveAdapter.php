@@ -228,7 +228,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * @param  string|null  $root
      * @param  array  $options
      */
-    public function __construct(Drive|Google_Service_Drive $service, $root = null, $options = [])
+    public function __construct($service, $root = null, $options = [])
     {
         $this->service = $service;
 
