@@ -23,6 +23,7 @@ namespace Masbug\Flysystem;
 
 use Google\Client;
 use Google\Http\REST;
+use Google_Client;
 use GuzzleHttp\Psr7\LimitStream;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
@@ -61,7 +62,7 @@ class StreamableUpload
     /** @var int */
     private $progress;
 
-    /** @var Client */
+    /** @var Client|Google_Client */
     private $client;
 
     /** @var \Psr\Http\Message\RequestInterface */
@@ -78,7 +79,7 @@ class StreamableUpload
     private $httpResultCode;
 
     /**
-     * @param  Client  $client
+     * @param  Client|Google_Client $client
      * @param  RequestInterface  $request
      * @param  string  $mimeType
      * @param  null|string|resource|StreamInterface  $data  Data you want to upload
@@ -87,7 +88,7 @@ class StreamableUpload
      *                               Only used if resumable=True.
      */
     public function __construct(
-        Client $client,
+        Client|Google_Client $client,
         RequestInterface $request,
         $mimeType,
         $data,

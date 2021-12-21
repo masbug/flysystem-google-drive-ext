@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Masbug\Flysystem;
 
 use Exception;
+use Google_Service_Drive;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\FileList;
@@ -72,7 +73,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Google_Service_Drive instance
      *
-     * @var Google_Service_Drive
+     * @var Google_Service_Drive|Drive
      */
     protected $service;
 
@@ -223,11 +224,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * GoogleDriveAdapter constructor.
      *
-     * @param  Drive  $service
+     * @param  Drive|Google_Service_Drive  $service
      * @param  string|null  $root
      * @param  array  $options
      */
-    public function __construct(Drive $service, $root = null, $options = [])
+    public function __construct(Drive|Google_Service_Drive $service, $root = null, $options = [])
     {
         $this->service = $service;
 
@@ -282,7 +283,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Gets the service (Google_Service_Drive)
      *
-     * @return object Google_Service_Drive
+     * @return Google\Service\Drive
      */
     public function getService()
     {
