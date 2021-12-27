@@ -206,7 +206,8 @@ class AppServiceProvider extends \Illuminate\Support\ServiceProvider{ // can be 
                 $client->refreshToken($config['refreshToken']);
                 $service = new \Google_Service_Drive($client);
                 $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service,$config['folder']??'/', $options);
-                return new \League\Flysystem\Filesystem($adapter);
+                $driver = new \League\Flysystem\Filesystem($adapter);
+                return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter);
             });
         }catch(\Exception $e){  }
         // ...
