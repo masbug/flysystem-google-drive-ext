@@ -16,32 +16,36 @@ For example: virtual path `/Xa3X9GlR6EmbnY1RLVTk5VUtOVkk/0B3X9GlR6EmbnY1RLVTk5VU
 ## Installation
 
 - For **Flysystem V2** or **Laravel >= 9.x.x**
+
 ```bash
 composer require masbug/flysystem-google-drive-ext
 ```
 
 - For **Flysystem V1** or **Laravel <= 8.x.x** use 1.x.x version of the package
+
 ```bash
 composer require masbug/flysystem-google-drive-ext:"^1.0.0"
 ```
 
 ## Getting Google Keys
 
-#### Please follow [Google Docs](https://developers.google.com/drive/v3/web/enable-sdk) to obtain your `client ID, client secret & refresh token`. 
+#### Please follow [Google Docs](https://developers.google.com/drive/v3/web/enable-sdk) to obtain your `client ID, client secret & refresh token`.
+
 #### In addition you can also check these easy-to-follow tutorial by [@ivanvermeyen](https://github.com/ivanvermeyen/laravel-google-drive-demo)
--   [Getting your Client ID and Secret](https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md)
--   [Getting your Refresh Token](https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/2-getting-your-refresh-token.md)
+
+- [Getting your Client ID and Secret](https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/1-getting-your-dlient-id-and-secret.md)
+- [Getting your Refresh Token](https://github.com/ivanvermeyen/laravel-google-drive-demo/blob/master/README/2-getting-your-refresh-token.md)
 
 ## Usage
 
 ```php
-$client = new \Google_Client();
+$client = new \Google\Client();
 $client->setClientId([client_id]);
 $client->setClientSecret([client_secret]);
 $client->refreshToken([refresh_token]);
 $client->setApplicationName('My Google Drive App');
 
-$service = new \Google_Service_Drive($client);
+$service = new \Google\Service\Drive($client);
 
 // variant 1
 $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service, 'My_App_Root');
@@ -72,6 +76,7 @@ $adapter3 = new \Masbug\Flysystem\GoogleDriveAdapter(
 
 $fs = new \League\Flysystem\Filesystem($adapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]));
 ```
+
 ```php
 // List selected root folder contents
 $contents = $fs->listContents('', true /* is_recursive */);
@@ -81,6 +86,7 @@ $contents = $fs->listContents('MyFolder', true /* is_recursive */);
 ```
 
 ##### File upload
+
 ```php
 // Upload a file
 $local_filepath = '/home/user/downloads/file_to_upload.ext';
@@ -100,10 +106,11 @@ try {
     echo 'UnableToWriteFile!'.PHP_EOL.$e->getMessage();
 }
 
-// NOTE: Remote folders are automatically created. 
+// NOTE: Remote folders are automatically created.
 ```
 
 ##### File download
+
 ```php
 // Download a file
 $remote_filepath = 'MyFolder/file.ext';
@@ -125,14 +132,15 @@ try {
 ```
 
 ##### How to get TeamDrive list and IDs
+
 ```php
-$client = new \Google_Client();
+$client = new \Google\Client();
 $client->setClientId([client_id]);
 $client->setClientSecret([client_secret]);
 $client->refreshToken([refresh_token]);
 $client->setApplicationName('My Google Drive App');
 
-$service = new \Google_Service_Drive($client);
+$service = new \Google\Service\Drive($client);
 
 $drives = $service->teamdrives->listTeamdrives()->getTeamDrives();
 foreach ($drives as $drive) {
@@ -145,7 +153,9 @@ foreach ($drives as $drive) {
 ## Using with Laravel Framework
 
 ##### Update `.env` file with google keys
+
 Add the keys you created to your `.env` file and set `google` as your default cloud storage. You can copy the `.env.example` file and fill in the blanks.
+
 ```
 FILESYSTEM_CLOUD=google
 GOOGLE_DRIVE_CLIENT_ID=xxx.apps.googleusercontent.com
@@ -163,6 +173,7 @@ GOOGLE_DRIVE_FOLDER=
 ```
 
 ##### Add disks on `config/filesystems.php`
+
 ```php
 'disks' => [
     // ...
@@ -174,7 +185,7 @@ GOOGLE_DRIVE_FOLDER=
         'folder' => env('GOOGLE_DRIVE_FOLDER'), // without folder is root of drive or team drive
         //'teamDriveId' => env('GOOGLE_DRIVE_TEAM_DRIVE_ID'),
     ],
-    // you can use more accounts, only add more disks and configs on .env 
+    // you can use more accounts, only add more disks and configs on .env
     // also you can use the same account and point to a diferent folders for each disk
     /*'second_google' => [
         'driver' => 'google',
@@ -188,7 +199,9 @@ GOOGLE_DRIVE_FOLDER=
 ```
 
 ##### Add driver storage in a `ServiceProvider` on path `app/Providers/`
+
 Example:
+
 ```php
 namespace App\Providers;
 
@@ -196,20 +209,27 @@ class AppServiceProvider extends \Illuminate\Support\ServiceProvider{ // can be 
     // ...
     public function boot(){
         // ...
-        try{
+        try {
             \Storage::extend('google', function($app, $config) {
-                $options = []; 
-                if(!empty($config['teamDriveId']??null)) $options['teamDriveId']=$config['teamDriveId']; 
-                $client = new \Google_Client();
+                $options = [];
+
+                if (!empty($config['teamDriveId'] ?? null)) {
+                    $options['teamDriveId'] = $config['teamDriveId'];
+                }
+
+                $client = new \Google\Client();
                 $client->setClientId($config['clientId']);
                 $client->setClientSecret($config['clientSecret']);
                 $client->refreshToken($config['refreshToken']);
-                $service = new \Google_Service_Drive($client);
-                $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service,$config['folder']??'/', $options);
+                
+                $service = new \Google\Service\Drive($client);
+                $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service, $config['folder'] ?? '/', $options);
                 $driver = new \League\Flysystem\Filesystem($adapter);
                 return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter);
             });
-        }catch(\Exception $e){  }
+        } catch(\Exception $e) {
+            // your exception handling logic
+        }
         // ...
     }
     // ...
@@ -217,23 +237,27 @@ class AppServiceProvider extends \Illuminate\Support\ServiceProvider{ // can be 
 ```
 
 Now you can access the drives like so:
+
 ```php
 $googleDisk = Storage::disk('google');
 //$secondDisk = Storage::disk('second_google'); //others disks
 ```
 
 Keep in mind that there can only be one default cloud storage drive, defined by `FILESYSTEM_CLOUD` in your `.env` (or config) file. If you set it to `google`, that will be the cloud drive:
+
 ```php
 Storage::cloud(); // refers to Storage::disk('google')
 ```
 
 ## Limitations
+
 Using display paths as identifiers for folders and files requires them to be unique. Unfortunately Google Drive allows users to create files and folders with same (displayed) names. In such cases when unique path cannot be determined this adapter chooses the oldest (first) instance.
 In case the newer duplicate is a folder and user puts a unique file or folder inside the adapter will be able to reach it properly (because full path is unique).
 
-Concurrent use of same Google Drive might lead to unexpected problems due to heavy caching of file/folder identifiers and file objects.   
+Concurrent use of same Google Drive might lead to unexpected problems due to heavy caching of file/folder identifiers and file objects.
 
 ## Acknowledgements
+
 This adapter is based on wonderful [flysystem-google-drive](https://github.com/nao-pon/flysystem-google-drive) by Naoki Sawada.
 
 It also contains an adaptation of [Google_Http_MediaFileUpload](https://github.com/googleapis/google-api-php-client/blob/master/src/Http/MediaFileUpload.php) by Google. I've added support for resumable uploads directly from streams (avoiding copying data to memory).

@@ -6,9 +6,10 @@ namespace Masbug\Flysystem;
 
 use Exception;
 use Google_Service_Drive;
-use Google_Service_Drive_DriveFile;
-use Google_Service_Drive_FileList;
-use Google_Service_Drive_Permission;
+use Google\Service\Drive;
+use Google\Service\Drive\DriveFile;
+use Google\Service\Drive\FileList;
+use Google\Service\Drive\Permission;
 use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
@@ -72,7 +73,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Google_Service_Drive instance
      *
-     * @var Google_Service_Drive
+     * @var Google_Service_Drive|Drive
      */
     protected $service;
 
@@ -223,11 +224,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * GoogleDriveAdapter constructor.
      *
-     * @param  Google_Service_Drive  $service
+     * @param  Drive|Google_Service_Drive  $service
      * @param  string|null  $root
      * @param  array  $options
      */
-    public function __construct(Google_Service_Drive $service, $root = null, $options = [])
+    public function __construct($service, $root = null, $options = [])
     {
         $this->service = $service;
 
@@ -282,7 +283,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Gets the service (Google_Service_Drive)
      *
-     * @return object Google_Service_Drive
+     * @return Google\Service\Drive
      */
     public function getService()
     {
@@ -315,7 +316,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if ($client->isUsingApplicationDefaultCredentials()) {
                 $client->fetchAccessTokenWithAssertion();
             } else {
-                $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+                $refreshToken = $client->getRefreshToken();
+                if ($refreshToken) {
+                    $client->fetchAccessTokenWithRefreshToken($refreshToken);
+                }
             }
         }
     }
@@ -457,7 +461,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             [$newParentId, $fileName] = $this->splitPath($newpath);
         }
 
-        $file = new Google_Service_Drive_DriveFile();
+        $file = new DriveFile();
         $file->setName($fileName);
         $file->setParents([
             $newParentId
@@ -467,7 +471,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             'fields' => self::FETCHFIELDS_GET
         ], 'files.copy'));
 
-        if ($newFile instanceof Google_Service_Drive_DriveFile) {
+        if ($newFile instanceof DriveFile) {
             $id = $newFile->getId();
             $this->cacheFileObjects[$id] = $newFile;
             $this->cacheObjects([$id => $newFile]);
@@ -538,7 +542,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                         $deleted = true;
                     } else {
                         if (!$this->usePermanentDelete) {
-                            $file = new Google_Service_Drive_DriveFile();
+                            $file = new DriveFile();
                             $file->setTrashed(true);
                             if ($this->service->files->update($id, $file, $this->applyDefaultParams([], 'files.update'))) {
                                 $this->uncacheId($id);
@@ -806,7 +810,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $path = $this->toVirtualPath($path, true, true);
         }
         if (($obj = $this->getFileObject(/** @scrutinizer ignore-type */ $path, true))) {
-            if ($obj instanceof Google_Service_Drive_DriveFile) {
+            if ($obj instanceof DriveFile) {
                 return $this->normaliseObject($obj, self::dirname($path));
             }
         }
@@ -983,7 +987,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
         $results = $batch->execute();
         foreach ($results as $key => $result) {
-            if ($result instanceof Google_Service_Drive_FileList) {
+            if ($result instanceof FileList) {
                 $object[$paths[$key]]['hasdir'] = $this->cacheHasDirs[$paths[$key]] = (bool)$result->getFiles();
             }
         }
@@ -1012,7 +1016,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 // unnecesary
             }
             try {
-                $new_permission = new Google_Service_Drive_Permission($this->publishPermission);
+                $new_permission = new Permission($this->publishPermission);
                 if ($permission = $this->service->permissions->create($file->getId(), $new_permission, $this->applyDefaultParams([], 'files.create'))) {
                     $file->setPermissions([$permission]);
                     return true;
@@ -1098,13 +1102,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * Get normalised files array from Google_Service_Drive_DriveFile
+     * Get normalised files array from DriveFile
      *
-     * @param  Google_Service_Drive_DriveFile  $object
+     * @param  DriveFile  $object
      * @param  string  $dirname  Parent directory itemId path
      * @return \League\Flysystem\StorageAttributes Normalised files array
      */
-    protected function normaliseObject(Google_Service_Drive_DriveFile $object, $dirname)
+    protected function normaliseObject(DriveFile $object, $dirname)
     {
         $id = $object->getId();
         $path_parts = $this->splitFileExtension($object->getName());
@@ -1180,7 +1184,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     $parameters['pageToken'] = $pageToken;
                 }
                 $fileObjs = $gFiles->listFiles($this->applyDefaultParams($parameters, 'files.list'));
-                if ($fileObjs instanceof Google_Service_Drive_FileList) {
+                if ($fileObjs instanceof FileList) {
                     foreach ($fileObjs as $obj) {
                         $id = $obj->getId();
                         $this->cacheFileObjects[$id] = $obj;
@@ -1215,11 +1219,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * Get file oblect Google_Service_Drive_DriveFile
+     * Get file oblect DriveFile
      *
      * @param  string  $path  itemId path
      * @param  bool  $checkDir  do check hasdir
-     * @return Google_Service_Drive_DriveFile|null
+     * @return DriveFile|null
      */
     public function getFileObject($path, $checkDir = false)
     {
@@ -1260,9 +1264,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $client->setUseBatch(false);
         }
 
-        if ($fileObj instanceof Google_Service_Drive_DriveFile) {
+        if ($fileObj instanceof DriveFile) {
             if ($hasdir && $fileObj->mimeType === self::DIRMIME) {
-                if ($hasdir instanceof Google_Service_Drive_FileList) {
+                if ($hasdir instanceof FileList) {
                     $this->cacheHasDirs[$fileObj->getId()] = (bool)$hasdir->getFiles();
                 }
             }
@@ -1281,7 +1285,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Get download url
      *
-     * @param  Google_Service_Drive_DriveFile  $file
+     * @param  DriveFile  $file
      * @return string|false
      */
     protected function getDownloadUrl($file)
@@ -1308,12 +1312,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
      *
      * @param  string  $name
      * @param  string  $parentId
-     * @return Google_Service_Drive_DriveFile|null
+     * @return DriveFile|null
      */
     protected function createDir($name, $parentId)
     {
         $this->refreshToken();
-        $file = new Google_Service_Drive_DriveFile();
+        $file = new DriveFile();
         $file->setName($name);
         $file->setParents([
             $parentId
@@ -1325,7 +1329,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         ], 'files.create'));
         $this->resetRequest($parentId);
 
-        return ($obj instanceof Google_Service_Drive_DriveFile) ? $obj : null;
+        return ($obj instanceof DriveFile) ? $obj : null;
     }
 
     /**
@@ -1342,7 +1346,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $this->refreshToken();
         [$parentId, $fileName] = $this->splitPath($path);
         $mime = $config->get('mimetype');
-        $file = new Google_Service_Drive_DriveFile();
+        $file = new DriveFile();
 
         if ($updating === null || $updating === true) {
             $srcFile = $this->getFileObject($path);
@@ -1422,7 +1426,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         $this->resetRequest($parentId);
 
-        if (isset($obj) && $obj instanceof Google_Service_Drive_DriveFile) {
+        if (isset($obj) && $obj instanceof DriveFile) {
             $this->cacheFileObjects[$obj->getId()] = $obj;
             $this->cacheObjects([$obj->getId() => $obj]);
             $result = $this->normaliseObject($obj, self::dirname($path));
@@ -1511,14 +1515,14 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 }
 
                 foreach ($results as $key => $value) {
-                    if ($value instanceof Google_Service_Drive_DriveFile) {
+                    if ($value instanceof DriveFile) {
                         $itemId = $value->getId();
                         $this->cacheFileObjects[$itemId] = $value;
                         if (!$this->rootId && strcmp($key, 'response-rootdir') === 0) {
                             $this->rootId = $itemId;
                         }
                     } else {
-                        if ($checkDir && $value instanceof Google_Service_Drive_FileList) {
+                        if ($checkDir && $value instanceof FileList) {
                             if (strncmp($key, 'response-hasdir-', 16) === 0) {
                                 $key = substr($key, 16);
                                 if (isset($this->cacheFileObjects[$key]) && $this->cacheFileObjects[$key]->mimeType === self::DIRMIME) {
@@ -1556,7 +1560,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     continue;
                 }
 
-                /* @var Google_Service_Drive_DriveFile $obj */
+                /* @var DriveFile $obj */
                 $obj = $this->cacheFileObjects[$itemId];
                 $parents = $obj->getParents();
 
@@ -1632,7 +1636,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     protected function cacheObjects($objects)
     {
         foreach ($objects as $key => $value) {
-            if ($value instanceof Google_Service_Drive_DriveFile) {
+            if ($value instanceof DriveFile) {
                 $complete_paths = $this->buildPathFromCacheFileObjects($value->getId());
                 foreach ($complete_paths as $itemId => $path) {
                     if (DEBUG_ME) {
@@ -1965,7 +1969,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         $tokens = explode('/', trim($virtualPath, '/'));
 
-        /** @var Google_Service_Drive_DriveFile[] $objects */
+        /** @var DriveFile[] $objects */
         $objects = $this->getObjects($tokens);
         $display = '';
         foreach ($tokens as $token) {
