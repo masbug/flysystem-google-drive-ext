@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Masbug\Flysystem;
 
 use Exception;
-use Google_Service_Drive;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\FileList;
@@ -71,9 +70,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
     const DIRMIME = 'application/vnd.google-apps.folder';
 
     /**
-     * Google_Service_Drive instance
+     * Google\Service\Drive instance
      *
-     * @var Google_Service_Drive|Drive
+     * @var Drive
      */
     protected $service;
 
@@ -224,7 +223,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * GoogleDriveAdapter constructor.
      *
-     * @param  Drive|Google_Service_Drive  $service
+     * @param  Drive  $service
      * @param  string|null  $root
      * @param  array  $options
      */
@@ -281,7 +280,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
-     * Gets the service (Google_Service_Drive)
+     * Gets the service
      *
      * @return Google\Service\Drive
      */
