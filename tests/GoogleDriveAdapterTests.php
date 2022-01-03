@@ -41,11 +41,11 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
             if (!empty($config['teamDriveId'] ?? null)) {
                 $options['teamDriveId'] = $config['teamDriveId'];
             }
-            $client = new \Google_Client();
+            $client = new \Google\Client();
             $client->setClientId($config['GOOGLE_DRIVE_CLIENT_ID']);
             $client->setClientSecret($config['GOOGLE_DRIVE_CLIENT_SECRET']);
             $client->refreshToken($config['GOOGLE_DRIVE_REFRESH_TOKEN']);
-            $service = new \Google_Service_Drive($client);
+            $service = new \Google\Service\Drive($client);
             return new GoogleDriveAdapter($service, 'tests/', $options);
         } catch (\Exception $e) {
             self::markTestSkipped($e->getMessage());
