@@ -27,6 +27,7 @@ use Google\Http\REST;
 use GuzzleHttp\Psr7\LimitStream;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
@@ -98,15 +99,7 @@ class StreamableUpload
         $this->client = $client;
         $this->request = $request;
         $this->mimeType = $mimeType;
-        if ($data !== null) {
-            if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
-                $this->data = /** @scrutinizer ignore-call */ \GuzzleHttp\Psr7\stream_for($data);
-            } else {
-                $this->data = \GuzzleHttp\Psr7\Utils::streamFor($data);
-            }
-        } else {
-            $this->data = null;
-        }
+        $this->data = $data !== null ? Utils::streamFor($data) : null;
         $this->resumable = $resumable;
         $this->chunkSize = is_bool($chunkSize) ? 0 : $chunkSize;
         $this->progress = 0;
@@ -165,11 +158,7 @@ class StreamableUpload
             }
             $chunk = new LimitStream($this->data, $this->chunkSize, $this->data->tell());
         } else {
-            if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
-                $chunk = /** @scrutinizer ignore-call */ \GuzzleHttp\Psr7\stream_for($chunk);
-            } else {
-                $chunk = \GuzzleHttp\Psr7\Utils::streamFor($chunk);
-            }
+            $chunk = Utils::streamFor($chunk);
         }
         $size = $chunk->getSize();
 
@@ -311,13 +300,8 @@ class StreamableUpload
                 }
             }
         }
-        if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
-            $stream = /** @scrutinizer ignore-call */ \GuzzleHttp\Psr7\stream_for($postBody);
-        } else {
-            $stream = \GuzzleHttp\Psr7\Utils::streamFor($postBody);
-        }
 
-        $request = $request->withBody($stream);
+        $request = $request->withBody(Utils::streamFor($postBody));
 
         if (isset($contentType) && $contentType) {
             $request = $request->withHeader('content-type', $contentType);
