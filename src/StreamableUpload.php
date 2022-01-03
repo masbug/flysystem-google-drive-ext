@@ -22,8 +22,8 @@ namespace Masbug\Flysystem;
  */
 
 use Google\Client;
-use Google\Http\REST;
 use Google\Exception as GoogleException;
+use Google\Http\REST;
 use GuzzleHttp\Psr7\LimitStream;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
@@ -79,7 +79,7 @@ class StreamableUpload
     private $httpResultCode;
 
     /**
-     * @param  Client $client
+     * @param  Client  $client
      * @param  RequestInterface  $request
      * @param  string  $mimeType
      * @param  null|string|resource|StreamInterface  $data  Data you want to upload
