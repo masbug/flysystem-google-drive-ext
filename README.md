@@ -132,20 +132,16 @@ try {
 ##### How to get TeamDrive list and IDs
 
 ```php
-$client = new \Google\Client();
-$client->setClientId([client_id]);
-$client->setClientSecret([client_secret]);
-$client->refreshToken([refresh_token]);
-$client->setApplicationName('My Google Drive App');
-
-$service = new \Google\Service\Drive($client);
-
-$drives = $service->teamdrives->listTeamdrives()->getTeamDrives();
+$drives = $fs->getAdapter()->getService()->teamdrives->listTeamdrives()->getTeamDrives();
 foreach ($drives as $drive) {
     echo 'TeamDrive: ' . $drive->name . PHP_EOL;
-    echo 'ID: ' . $drive->id . PHP_EOL;
+    echo 'ID: ' . $drive->id . PHP_EOL. PHP_EOL;
 }
+```
 
+##### How permanently deletes all of the user's trashed files
+```php
+$fs->getAdapter()->emptyTrash([]);
 ```
 
 ## Using with Laravel Framework

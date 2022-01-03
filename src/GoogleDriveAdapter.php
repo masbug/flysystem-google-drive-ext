@@ -295,7 +295,10 @@ class GoogleDriveAdapter extends AbstractAdapter
             if ($client->isUsingApplicationDefaultCredentials()) {
                 $client->fetchAccessTokenWithAssertion();
             } else {
-                $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+                $refreshToken = $client->getRefreshToken();
+                if ($refreshToken) {
+                    $client->fetchAccessTokenWithRefreshToken($refreshToken);
+                }
             }
         }
     }
