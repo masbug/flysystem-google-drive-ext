@@ -21,11 +21,9 @@ namespace Masbug\Flysystem;
  * limitations under the License.
  */
 
-use Google_Client;
-use Google_Http_REST;
 use Google\Client;
-use Google\Exception;
 use Google\Http\REST;
+use Google\Exception as GoogleException;
 use GuzzleHttp\Psr7\LimitStream;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
@@ -64,7 +62,7 @@ class StreamableUpload
     /** @var int */
     private $progress;
 
-    /** @var Google_Client|Client */
+    /** @var Client */
     private $client;
 
     /** @var \Psr\Http\Message\RequestInterface */
@@ -81,7 +79,7 @@ class StreamableUpload
     private $httpResultCode;
 
     /**
-     * @param  Google_Client|Client  $client
+     * @param  Client $client
      * @param  RequestInterface  $request
      * @param  string  $mimeType
      * @param  null|string|resource|StreamInterface  $data  Data you want to upload
@@ -400,7 +398,7 @@ class StreamableUpload
         $error = "Failed to start the resumable upload (HTTP {$message})";
         $this->client->getLogger()->error($error);
 
-        throw new Exception($error);
+        throw new GoogleException($error);
     }
 
     private function transformToUploadUrl()

@@ -2,7 +2,6 @@
 
 namespace Masbug\Flysystem;
 
-use Google_Service_Drive;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\FileList;
@@ -55,9 +54,9 @@ class GoogleDriveAdapter extends AbstractAdapter
     const DIRMIME = 'application/vnd.google-apps.folder';
 
     /**
-     * Google_Service_Drive instance
+     * Google\Service\Drive instance
      *
-     * @var Google_Service_Drive|Drive
+     * @var Drive
      */
     protected $service;
 
@@ -203,7 +202,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     /**
      * GoogleDriveAdapter constructor.
      *
-     * @param  Google_Service_Drive|Drive  $service
+     * @param  Drive  $service
      * @param  string|null  $root
      * @param  array  $options
      */
@@ -260,9 +259,9 @@ class GoogleDriveAdapter extends AbstractAdapter
     }
 
     /**
-     * Gets the service (Google_Service_Drive)
+     * Gets the service
      *
-     * @return object Google_Service_Drive
+     * @return Google\Service\Drive
      */
     public function getService()
     {
@@ -1554,7 +1553,7 @@ class GoogleDriveAdapter extends AbstractAdapter
                     continue;
                 }
 
-                /* @var Google_Service_Drive_DriveFile $obj */
+                /* @var DriveFile $obj */
                 $obj = $this->cacheFileObjects[$itemId];
                 $parents = $obj->getParents();
 
