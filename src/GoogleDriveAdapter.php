@@ -6,6 +6,7 @@ use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\FileList;
 use Google\Service\Drive\Permission;
+use GuzzleHttp\Psr7\Utils;
 use League\Flysystem\Adapter\AbstractAdapter;
 use League\Flysystem\AdapterInterface;
 use League\Flysystem\Config;
@@ -54,7 +55,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     const DIRMIME = 'application/vnd.google-apps.folder';
 
     /**
-     * Google\Service\Drive instance
+     * \Google\Service\Drive instance
      *
      * @var Drive
      */
@@ -261,7 +262,7 @@ class GoogleDriveAdapter extends AbstractAdapter
     /**
      * Gets the service
      *
-     * @return Google\Service\Drive
+     * @return \Google\Service\Drive
      */
     public function getService()
     {
@@ -1361,11 +1362,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         $file->setMimeType($mime);
 
         /** @var StreamInterface $stream */
-        if (function_exists('\GuzzleHttp\Psr7\stream_for')) {
-            $stream = \GuzzleHttp\Psr7\stream_for($contents);
-        } else {
-            $stream = \GuzzleHttp\Psr7\Utils::streamFor($contents);
-        }
+        $stream = Utils::streamFor($contents);
         $size = $stream->getSize();
 
         if ($size <= self::MAX_CHUNK_SIZE) {
