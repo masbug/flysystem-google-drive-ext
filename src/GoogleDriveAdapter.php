@@ -370,6 +370,20 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
     }
 
+    /**
+     * @throws FilesystemException
+     */
+    public function directoryExists(string $path): bool
+    {
+        try {
+            $location = $this->prefixer->prefixPath($path);
+            $this->toVirtualPath($location, true, true);
+            return true;
+        } catch (UnableToReadFile $e) {
+            return false;
+        }
+    }
+
     private function writeData(string $location, $contents, Config $config)
     {
         $updating = null;
@@ -634,6 +648,17 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
 
         throw UnableToCreateDirectory::atLocation($dirname, 'Failed to create dir');
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function has($path): bool
+    {
+        if ($this->useDisplayPaths) {
+            $this->toVirtualPath($path, false);
+        }
+        return ($this->getFileObject($path, true) instanceof DriveFile);
     }
 
     /**
