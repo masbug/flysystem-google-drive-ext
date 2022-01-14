@@ -15,7 +15,7 @@ For example: virtual path `/Xa3X9GlR6EmbnY1RLVTk5VUtOVkk/0B3X9GlR6EmbnY1RLVTk5VU
 
 ## Installation
 
-- For **Flysystem V2** or **Laravel >= 9.x.x**
+- For **Flysystem V2/V3** or **Laravel >= 9.x.x**
 
 ```bash
 composer require masbug/flysystem-google-drive-ext

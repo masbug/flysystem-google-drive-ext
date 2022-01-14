@@ -10,6 +10,8 @@ use League\Flysystem\FilesystemAdapter;
 
 class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
 {
+    protected $exceptionTypeToRetryOn = null;
+
     /**
      * @var string
      */
@@ -18,6 +20,12 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
     public static function setUpBeforeClass(): void
     {
         static::$adapterPrefix = 'ci/'.bin2hex(random_bytes(10));
+    }
+
+    protected function retryOnException(string $className, int $timout = 2): void
+    {
+        $this->exceptionTypeToRetryOn = null;
+        $this->timeoutForExceptionRetry = $timout;
     }
 
     protected static function createFilesystemAdapter(): FilesystemAdapter

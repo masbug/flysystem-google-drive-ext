@@ -23,13 +23,13 @@
         "php": "^7.2 | ^8.0",
         "ext-mbstring": "*",
         "guzzlehttp/guzzle": "^6.3 | ^7.0",
-        "league/flysystem": "^2.1.1",
+        "league/flysystem": "^2.1.1|^3.0",
         "google/apiclient": "^2.2",
         "guzzlehttp/psr7": "^1.7|^2.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^8.0 | ^9.3",
-        "league/flysystem-adapter-test-utilities": "^2.0"
+        "league/flysystem-adapter-test-utilities": "^2.0|^3.0"
     },
     "autoload": {
         "psr-4": {
