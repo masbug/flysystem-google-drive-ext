@@ -262,12 +262,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
         } else {
             if (!$this->useDisplayPaths || $root === null) {
                 if ($root === null) {
-                    $root = 'root';
+                    $root = $this->spaces === 'appDataFolder' ? 'appDataFolder' : 'root';
                 }
                 $this->root = $root;
                 $this->setPathPrefix('');
             } else {
-                $this->root = 'root';
+                $this->root = $this->spaces === 'appDataFolder' ? 'appDataFolder' : 'root';
                 $this->setPathPrefix('');
 
                 // get real root id
