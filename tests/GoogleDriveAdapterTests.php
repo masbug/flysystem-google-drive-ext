@@ -93,8 +93,8 @@ class GoogleDriveAdapterTests extends TestCase
                 self::markTestSkipped("No google service config found in {$file}.");
             }
             $options = ['usePermanentDelete' => true];
-            if (!empty($config['teamDriveId'] ?? null)) {
-                $options['teamDriveId'] = $config['teamDriveId'];
+            if (!empty($config['GOOGLE_DRIVE_TEAM_DRIVE_ID'] ?? null)) {
+                $options['teamDriveId'] = $config['GOOGLE_DRIVE_TEAM_DRIVE_ID'];
             }
             $client = new \Google\Client();
             $client->setClientId($config['GOOGLE_DRIVE_CLIENT_ID']);
