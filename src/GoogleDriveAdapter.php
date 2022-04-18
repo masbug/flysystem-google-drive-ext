@@ -103,7 +103,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         'parameters' => [],
 
-        'teamDriveId' => null,
+        'driveId' => null,
 
         'sanitize_chars' => [
             // sanitize filename
@@ -494,18 +494,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
 
             $srcFile = $this->cacheFileObjects[$srcId];
-            $permissions = $srcFile->getPermissions();
-            $visibility = Visibility::PRIVATE;
-            try {
-                foreach ($permissions as $permission) {
-                    if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
-                        $visibility = Visibility::PUBLIC;
-                        break;
-                    }
-                }
-            } catch (Exception $e) {
-                // unnecesary
-            }
+            $visibility = $this->getRawVisibility($srcFile);
+
             if ($config->get('visibility') === Visibility::PUBLIC || $visibility === Visibility::PUBLIC) {
                 $this->publish($id);
             } else {
@@ -525,7 +515,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function move(string $source, string $destination, Config $config): void
     {
         if (!$this->fileExists($source)) {
-            throw UnableToMoveFile::fromLocationTo($source, $destination, new \Exception("File {$source} not exist."));
+            throw UnableToMoveFile::fromLocationTo($source, $destination, new Exception("File {$source} not exist."));
         }
         try {
             $this->copy($source, $destination, $config);
@@ -844,7 +834,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
     private function fileAttributes(string $path, string $type = ''): FileAttributes
     {
-        $exception = new \Exception('Unable to get metadata');
+        $exception = new Exception('Unable to get metadata');
         $prefixedPath = $this->prefixer->prefixPath($path);
 
         try {
@@ -927,16 +917,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
             // Unnecesary
         }
         if (!isset($file) || !$file) {
-            throw UnableToRetrieveMetadata::visibility($location, '', new \Exception('Error finding the file'));
+            throw UnableToRetrieveMetadata::visibility($location, '', new Exception('Error finding the file'));
         }
-        $permissions = $file->getPermissions();
-        $visibility = Visibility::PRIVATE;
-        foreach ($permissions as $permission) {
-            if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
-                $visibility = Visibility::PUBLIC;
-                break;
-            }
-        }
+
+        $visibility = $this->getRawVisibility($file);
+
         return new FileAttributes(/** @scrutinizer ignore-type */ $path, null, $visibility);
     }
 
@@ -1021,6 +1006,31 @@ class GoogleDriveAdapter implements FilesystemAdapter
     }
 
     /**
+     * Get the object permissions presented as a visibility.
+     *
+     * @param  string  $path  itemId path
+     * @return string
+     */
+    private function getRawVisibility($file)
+    {
+        $permissions = $file->getPermissions();
+        $visibility = Visibility::PRIVATE;
+
+        if (! count($permissions)) {
+            $permissions = $this->service->permissions->listPermissions($file->getId(), $this->applyDefaultParams([], 'permissions.list'));
+            $file->setPermissions($permissions);
+        }
+
+        foreach ($permissions as $permission) {
+            if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
+                $visibility = Visibility::PUBLIC;
+                break;
+            }
+        }
+        return $visibility;
+    }
+
+    /**
      * Publish specified path item
      *
      * @param  string  $path  itemId path
@@ -1030,15 +1040,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         $this->refreshToken();
         if (($file = $this->getFileObject($path))) {
-            $permissions = $file->getPermissions();
-            try {
-                foreach ($permissions as $permission) {
-                    if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
-                        return true;
-                    }
-                }
-            } catch (Exception $e) {
-                // unnecesary
+            if ($this->getRawVisibility($file) === Visibility::PUBLIC) {
+                return true;
             }
             try {
                 $new_permission = new Permission($this->publishPermission);
@@ -1046,7 +1049,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     $file->setPermissions([$permission]);
                     return true;
                 }
-            } catch (\Exception $e) {
+            } catch (Throwable $e) {
                 return false;
             }
         }
@@ -1064,6 +1067,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         $this->refreshToken();
         if (($file = $this->getFileObject($path))) {
+            if ($this->getRawVisibility($file) !== Visibility::PUBLIC) {
+                return true;
+            }
             $permissions = $file->getPermissions();
             try {
                 foreach ($permissions as $permission) {
@@ -1073,7 +1079,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 }
                 $file->setPermissions([]);
                 return true;
-            } catch (\Exception $e) {
+            } catch (Throwable $e) {
                 return false;
             }
         }
@@ -1148,7 +1154,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     break;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
             // Unnecesary
         }
         if ($this->useDisplayPaths) {
@@ -1232,7 +1238,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 } else {
                     $pageToken = null;
                 }
-            } catch (\Exception $e) {
+            } catch (Throwable $e) {
                 $pageToken = null;
             }
         } while ($pageToken && $maxResults === 0);
@@ -1317,6 +1323,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         if (strpos($file->mimeType, 'application/vnd.google-apps') !== 0) {
             $params = $this->applyDefaultParams(['alt' => 'media'], 'files.get');
+            foreach ($params as $key => $value) {
+                if (is_bool($value)) {
+                    $params[$key] = $value ? 'true' : 'false';
+                }
+            }
             return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'?'.http_build_query($params);
         }
 
@@ -2149,8 +2160,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
             array_fill_keys([
                 'files.copy', 'files.create', 'files.delete',
                 'files.trash', 'files.get', 'files.list', 'files.update',
-                'files.watch'
-            ], ['supportsTeamDrives' => true]),
+                'files.watch', 'permissions.list'
+            ], ['supportsAllDrives' => true]),
             $this->optParams
         );
     }
@@ -2166,19 +2177,19 @@ class GoogleDriveAdapter implements FilesystemAdapter
      * @see https://developers.google.com/drive/v3/reference/files/list
      * @see \Google_Service_Drive_Resource_Files
      */
-    public function setTeamDriveId($teamDriveId, $corpora = 'teamDrive')
+    public function setTeamDriveId($teamDriveId, $corpora = 'drive')
     {
         $this->enableTeamDriveSupport();
         $this->optParams = array_merge_recursive($this->optParams, [
             'files.list' => [
                 'corpora' => $corpora,
-                'includeTeamDriveItems' => true,
-                'teamDriveId' => $teamDriveId
+                'includeItemsFromAllDrives' => true,
+                'driveId' => $teamDriveId
             ]
         ]);
 
         if ($this->root === 'root' || $this->root === null) {
-            $this->setPathPrefix($teamDriveId);
+            $this->setPathPrefix('');
             $this->root = $teamDriveId;
         }
     }
