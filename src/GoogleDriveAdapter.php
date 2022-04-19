@@ -87,7 +87,7 @@ class GoogleDriveAdapter extends AbstractAdapter
 
         'parameters' => [],
 
-        'teamDriveId' => null,
+        'driveId' => null,
 
         'sanitize_chars' => [
             // sanitize filename
@@ -979,6 +979,12 @@ class GoogleDriveAdapter extends AbstractAdapter
         $file = $this->getFileObject($path);
         $permissions = $file->getPermissions();
         $visibility = AdapterInterface::VISIBILITY_PRIVATE;
+
+        if (! count($permissions)) {
+            $permissions = $this->service->permissions->listPermissions($file->getId(), $this->applyDefaultParams([], 'permissions.list'));
+            $file->setPermissions($permissions);
+        }
+
         foreach ($permissions as $permission) {
             if ($permission->type === $this->publishPermission['type'] && $permission->role === $this->publishPermission['role']) {
                 $visibility = AdapterInterface::VISIBILITY_PUBLIC;
@@ -1025,6 +1031,9 @@ class GoogleDriveAdapter extends AbstractAdapter
     {
         $this->refreshToken();
         if (($file = $this->getFileObject($path))) {
+            if ($this->getRawVisibility($path) !== AdapterInterface::VISIBILITY_PUBLIC) {
+                return true;
+            }
             $permissions = $file->getPermissions();
             try {
                 foreach ($permissions as $permission) {
@@ -1284,6 +1293,11 @@ class GoogleDriveAdapter extends AbstractAdapter
     {
         if (strpos($file->mimeType, 'application/vnd.google-apps') !== 0) {
             $params = $this->applyDefaultParams(['alt' => 'media'], 'files.get');
+            foreach ($params as $key => $value) {
+                if (is_bool($value)) {
+                    $params[$key] = $value ? 'true' : 'false';
+                }
+            }
             return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'?'.http_build_query($params);
         }
 
@@ -2109,8 +2123,8 @@ class GoogleDriveAdapter extends AbstractAdapter
             array_fill_keys([
                 'files.copy', 'files.create', 'files.delete',
                 'files.trash', 'files.get', 'files.list', 'files.update',
-                'files.watch'
-            ], ['supportsTeamDrives' => true]),
+                'files.watch', 'permissions.list'
+            ], ['supportsAllDrives' => true]),
             $this->optParams
         );
     }
@@ -2126,19 +2140,19 @@ class GoogleDriveAdapter extends AbstractAdapter
      * @see https://developers.google.com/drive/v3/reference/files/list
      * @see \Google_Service_Drive_Resource_Files
      */
-    public function setTeamDriveId($teamDriveId, $corpora = 'teamDrive')
+    public function setTeamDriveId($teamDriveId, $corpora = 'drive')
     {
         $this->enableTeamDriveSupport();
         $this->optParams = array_merge_recursive($this->optParams, [
             'files.list' => [
                 'corpora' => $corpora,
-                'includeTeamDriveItems' => true,
-                'teamDriveId' => $teamDriveId
+                'includeItemsFromAllDrives' => true,
+                'driveId' => $teamDriveId
             ]
         ]);
 
         if ($this->root === 'root' || $this->root === null) {
-            $this->setPathPrefix($teamDriveId);
+            $this->setPathPrefix('');
             $this->root = $teamDriveId;
         }
     }

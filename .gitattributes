@@ -13,3 +13,4 @@
 /phpunit.xml.dist   export-ignore
 /docs               export-ignore
 /tests              export-ignore
+/google-drive-service-account.json.example export-ignore
