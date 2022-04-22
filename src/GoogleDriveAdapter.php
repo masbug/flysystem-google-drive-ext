@@ -496,6 +496,9 @@ class GoogleDriveAdapter extends AbstractAdapter
             if (isset($this->cacheHasDirs[$srcId])) {
                 $this->cacheHasDirs[$id] = $this->cacheHasDirs[$srcId];
             }
+            if ($this->useDisplayPaths) {
+                $this->cachedPaths[trim($newpathDir.'/'.$fileName, '/')] = $id;
+            }
 
             if ($this->getRawVisibility($srcId) === AdapterInterface::VISIBILITY_PUBLIC) {
                 $this->publish($id);
@@ -1432,6 +1435,9 @@ class GoogleDriveAdapter extends AbstractAdapter
             $this->cacheFileObjects[$obj->getId()] = $obj;
             $this->cacheObjects([$obj->getId() => $obj]);
             $result = $this->normaliseObject($obj, self::dirname($path));
+            if ($this->useDisplayPaths) {
+                $this->cachedPaths[$result['display_path']] = $obj->getId();
+            }
 
             if (($visibility = $config->get('visibility'))) {
                 if ($this->setVisibility($result['virtual_path'], $visibility, true)) {
@@ -1774,7 +1780,10 @@ class GoogleDriveAdapter extends AbstractAdapter
                 if (DEBUG_ME) {
                     echo 'New req: '.$id;
                 }
-                $items[] = $this->getItems($id, false, 0, $is_last ? '' : 'mimeType = "'.self::DIRMIME.'"');
+
+                $query = $is_last ? [] : ['mimeType = "'.self::DIRMIME.'"'];
+                $query[] = "name = '{$token}'";
+                $items[] = $this->getItems($id, false, 0, implode(' and ', $query));
                 if (DEBUG_ME) {
                     echo " ...done\n";
                 }
