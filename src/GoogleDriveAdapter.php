@@ -492,6 +492,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if (isset($this->cacheHasDirs[$srcId])) {
                 $this->cacheHasDirs[$id] = $this->cacheHasDirs[$srcId];
             }
+            if ($this->useDisplayPaths) {
+                $this->cachedPaths[trim($newpathDir.'/'.$fileName, '/')] = $id;
+            }
 
             $srcFile = $this->cacheFileObjects[$srcId];
             $visibility = $this->getRawVisibility($srcFile);
@@ -1462,6 +1465,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $this->cacheFileObjects[$obj->getId()] = $obj;
             $this->cacheObjects([$obj->getId() => $obj]);
             $result = $this->normaliseObject($obj, self::dirname($path));
+            if ($this->useDisplayPaths) {
+                $this->cachedPaths[$result->extraMetadata()['display_path']] = $obj->getId();
+            }
+
             if ($config->get('visibility') === Visibility::PUBLIC) {
                 $this->publish($obj->getId());
             } else {
@@ -1802,7 +1809,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 if (DEBUG_ME) {
                     echo 'New req: '.$id;
                 }
-                $items[] = $this->getItems($id, false, 0, $is_last ? '' : 'mimeType = "'.self::DIRMIME.'"');
+
+                $query = $is_last ? [] : ['mimeType = "'.self::DIRMIME.'"'];
+                $query[] = "name = '{$token}'";
+                $items[] = $this->getItems($id, false, 0, implode(' and ', $query));
                 if (DEBUG_ME) {
                     echo " ...done\n";
                 }
