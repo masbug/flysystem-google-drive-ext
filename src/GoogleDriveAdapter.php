@@ -1001,7 +1001,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $results = $batch->execute();
         foreach ($results as $key => $result) {
             if ($result instanceof FileList) {
-                $object[$paths[$key]]['hasdir'] = $this->cacheHasDirs[$paths[$key]] = (bool)$result->getFiles();
+                $array = $object[$paths[$key]]->jsonSerialize();
+                $array['extra_metadata']['hasdir'] = $this->cacheHasDirs[$paths[$key]] = (bool)$result->getFiles();
+                $object[$paths[$key]] = DirectoryAttributes::fromArray($array);
             }
         }
         $client->setUseBatch(false);
