@@ -1130,7 +1130,7 @@ class GoogleDriveAdapter extends AbstractAdapter
             $result['path'] = $result['display_path'];
         } else {
             $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
-            $result['display_path'] = $this->toDisplayPath($result['virtual_path']);
+            $result['display_path'] = $result['virtual_path'];
 
             $result['path'] = $result['virtual_path'];
         }
