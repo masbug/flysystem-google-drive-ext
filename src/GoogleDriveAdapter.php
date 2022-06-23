@@ -87,6 +87,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         'useHasDir'         => false,
         'useDisplayPaths'   => true,
         'usePermanentDelete'   => false,
+        'useSinglePathTransaction' => false,
         'publishPermission' => [
             'type'     => 'anyone',
             'role'     => 'reader',
@@ -177,6 +178,14 @@ class GoogleDriveAdapter implements FilesystemAdapter
     private $usePermanentDelete = false;
 
     /**
+     * When only needs to upload/download single file, is quick and
+     * avoid 'Timeout/Allowed memory exhausted' when too many files
+     *
+     * @var bool
+     */
+    private $useSinglePathTransaction = false;
+
+    /**
      * Options array
      *
      * @var array
@@ -237,6 +246,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $this->spaces = $this->options['spaces'];
         $this->useHasDir = $this->options['useHasDir'];
         $this->usePermanentDelete = $this->options['usePermanentDelete'];
+        $this->useSinglePathTransaction = $this->options['useSinglePathTransaction'];
         $this->publishPermission = $this->options['publishPermission'];
         $this->useDisplayPaths = $this->options['useDisplayPaths'];
         $this->optParams = $this->cleanOptParameters($this->options['parameters']);
@@ -492,7 +502,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if (isset($this->cacheHasDirs[$srcId])) {
                 $this->cacheHasDirs[$id] = $this->cacheHasDirs[$srcId];
             }
-            if ($this->useDisplayPaths) {
+            if ($this->useSinglePathTransaction && $this->useDisplayPaths) {
                 $this->cachedPaths[trim($newpathDir.'/'.$fileName, '/')] = $id;
             }
 
@@ -1467,7 +1477,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $this->cacheFileObjects[$obj->getId()] = $obj;
             $this->cacheObjects([$obj->getId() => $obj]);
             $result = $this->normaliseObject($obj, self::dirname($path));
-            if ($this->useDisplayPaths) {
+            if ($this->useSinglePathTransaction && $this->useDisplayPaths) {
                 $this->cachedPaths[$result->extraMetadata()['display_path']] = $obj->getId();
             }
 
@@ -1813,7 +1823,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 }
 
                 $query = $is_last ? [] : ['mimeType = "'.self::DIRMIME.'"'];
-                $query[] = "name = '{$token}'";
+                if ($this->useSinglePathTransaction) {
+                    $query[] = "name = '{$token}'";
+                }
                 $items[] = $this->getItems($id, false, 0, implode(' and ', $query));
                 if (DEBUG_ME) {
                     echo " ...done\n";
