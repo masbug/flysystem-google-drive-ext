@@ -31,6 +31,16 @@
         "phpunit/phpunit": "^8.0 | ^9.3",
         "league/flysystem-adapter-test-utilities": "^2.0|^3.0"
     },
+    "scripts": {
+        "pre-autoload-dump": [
+            "Google\\Task\\Composer::cleanup"
+        ]
+    },
+    "extra": {
+        "google/apiclient-services": [
+            "Drive"
+        ]
+    },
     "autoload": {
         "psr-4": {
             "Masbug\\Flysystem\\": "src"
