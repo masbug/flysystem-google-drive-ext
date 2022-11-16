@@ -1168,7 +1168,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $id = $object->getId();
         $path_parts = $this->splitFileExtension($object->getName());
         $type = $object->mimeType === self::DIRMIME ? 'dir' : 'file';
-        $result = ['id' => $id];
+        $result = [
+            'id' => $id,
+            'name' => $object->getName(),
+        ];
         $visibility = Visibility::PRIVATE;
         $permissions = $object->getPermissions();
         try {
@@ -1186,7 +1189,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $result['display_path'] = $this->useDisplayPaths || $this->showDisplayPaths ? $this->toDisplayPath($result['virtual_path']) : $result['virtual_path'];
 
         if ($type === 'file') {
-            $result['name'] = $object->getName();
             $result['filename'] = $path_parts['filename'];
             $result['extension'] = $path_parts['extension'];
             return new FileAttributes(
@@ -1198,7 +1200,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 $result);
         }
         if ($type === 'dir') {
-            $result['name'] = $object->getName();
             if ($this->useHasDir) {
                 $result['hasdir'] = isset($this->cacheHasDirs[$id]) ? $this->cacheHasDirs[$id] : false;
             }
