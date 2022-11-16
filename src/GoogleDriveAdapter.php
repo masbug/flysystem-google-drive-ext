@@ -1182,7 +1182,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             // Unnecesary
         }
 
-        $result['virtual_path'] = ($dirname ? ($dirname . '/') : '') . $id;
+        $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
         $result['display_path'] = $this->useDisplayPaths || $this->showDisplayPaths ? $this->toDisplayPath($result['virtual_path']) : $result['virtual_path'];
 
         if ($type === 'file') {
