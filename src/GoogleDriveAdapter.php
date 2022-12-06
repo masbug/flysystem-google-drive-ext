@@ -961,7 +961,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             }
             if ($obj->mimeType === self::DIRMIME) {
                 return 'https://drive.google.com/drive/folders/'.$obj->id.'?usp=sharing';
-            }            
+            }
         }
         return false;
     }
