@@ -959,8 +959,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if (($url = $obj->getWebViewLink())) {
                 return $url;
             }
-            if ($obj->id) {
-                return 'https://drive.google.com/drive/folders/' . $obj->id . '?usp=sharing';
+            if ($obj->mimeType === self::DIRMIME) {
+                return 'https://drive.google.com/drive/folders/'.$obj->id.'?usp=sharing';
             }            
         }
         return false;
