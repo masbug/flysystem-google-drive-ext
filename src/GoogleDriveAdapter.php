@@ -439,7 +439,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         if (!isset($result) || !$result) {
             throw UnableToWriteFile::atLocation($path, 'Not able to write the file');
         }
-        
+
         return $result;
     }
 
