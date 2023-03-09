@@ -1206,6 +1206,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if ($this->useHasDir) {
                 $result['hasdir'] = isset($this->cacheHasDirs[$id]) ? $this->cacheHasDirs[$id] : false;
             }
+            $result['dirname'] = $path_parts['filename'];
             return new DirectoryAttributes(
                 rtrim($this->useDisplayPaths ? $result['display_path'] : $result['virtual_path'], '/'),
                 $visibility,
