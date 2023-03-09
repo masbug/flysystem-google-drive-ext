@@ -54,7 +54,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      *
      * @var string
      */
-    const FETCHFIELDS_LIST = 'files(id,mimeType,createdTime,modifiedTime,name,parents,permissions,size,webContentLink),nextPageToken';
+    const FETCHFIELDS_LIST = 'files(id,mimeType,createdTime,modifiedTime,name,parents,permissions,size,webContentLink,shortcutDetails),nextPageToken';
 
     /**
      * Fetch fields setting for get
@@ -64,11 +64,18 @@ class GoogleDriveAdapter implements FilesystemAdapter
     const FETCHFIELDS_GET = 'id,name,mimeType,createdTime,modifiedTime,parents,permissions,size,webContentLink,webViewLink';
 
     /**
-     * MIME tyoe of directory
+     * MIME type of directory
      *
      * @var string
      */
     const DIRMIME = 'application/vnd.google-apps.folder';
+
+    /**
+     * MIME type of directory
+     *
+     * @var string
+     */
+    const SHORTCUTMIME = 'application/vnd.google-apps.shortcut';
 
     /**
      * \Google\Service\Drive instance
@@ -1170,6 +1177,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
     {
         $id = $object->getId();
         $path_parts = $this->splitFileExtension($object->getName());
+        if ($object->mimeType == self::SHORTCUTMIME) {
+            $object->mimeType = $object->shortcutDetails->targetMimeType;
+            $id = $object->shortcutDetails->targetId;
+        }
         $type = $object->mimeType === self::DIRMIME ? 'dir' : 'file';
         $result = [
             'id' => $id,
