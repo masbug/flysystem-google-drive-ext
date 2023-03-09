@@ -57,7 +57,7 @@ $adapter2 = new \Masbug\Flysystem\GoogleDriveAdapter(
     [
         'useDisplayPaths' => true, /* this is the default */
 
-        /* These are global parameters sent to server along with per API parameters. Please see https://developers.google.com/drive/api/v3/query-parameters for more info. */
+        /* These are global parameters sent to server along with per API parameters. Please see https://cloud.google.com/apis/docs/system-parameters for more info. */
         'parameters' => [
             /* This example tells the remote server to perform quota checks per unique user id. Otherwise the quota would be per client IP. */
             'quotaUser' => (string)$some_unique_per_user_id
