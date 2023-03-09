@@ -86,6 +86,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         'spaces'            => 'drive',
         'useHasDir'         => false,
         'useDisplayPaths'   => true,
+        'showDisplayPaths'   => false,
         'usePermanentDelete'   => false,
         'useSinglePathTransaction' => false,
         'publishPermission' => [
@@ -200,6 +201,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
     private $useDisplayPaths = true;
 
     /**
+     * Show display paths in extra metadata instead of virtual IDs
+     *
+     * @var bool
+     */
+    private $showDisplayPaths = false;
+
+    /**
      * Resolved root ID
      *
      * @var string
@@ -249,6 +257,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $this->useSinglePathTransaction = $this->options['useSinglePathTransaction'];
         $this->publishPermission = $this->options['publishPermission'];
         $this->useDisplayPaths = $this->options['useDisplayPaths'];
+        $this->showDisplayPaths = $this->options['showDisplayPaths'];
         $this->optParams = $this->cleanOptParameters($this->options['parameters']);
 
         if ($root !== null) {
@@ -1159,7 +1168,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $id = $object->getId();
         $path_parts = $this->splitFileExtension($object->getName());
         $type = $object->mimeType === self::DIRMIME ? 'dir' : 'file';
-        $result = ['id' => $id];
+        $result = [
+            'id' => $id,
+            'name' => $object->getName(),
+        ];
         $visibility = Visibility::PRIVATE;
         $permissions = $object->getPermissions();
         try {
@@ -1172,24 +1184,30 @@ class GoogleDriveAdapter implements FilesystemAdapter
         } catch (Throwable $e) {
             // Unnecesary
         }
-        if ($this->useDisplayPaths) {
-            $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
-            $result['display_path'] = $this->toDisplayPath($result['virtual_path']);
-        } else {
-            $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
-            $result['display_path'] = $result['virtual_path'];
-        }
+
+        $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
+        $result['display_path'] = $this->useDisplayPaths || $this->showDisplayPaths ? $this->toDisplayPath($result['virtual_path']) : $result['virtual_path'];
 
         if ($type === 'file') {
             $result['filename'] = $path_parts['filename'];
             $result['extension'] = $path_parts['extension'];
-            return new FileAttributes($result['display_path'], (int)$object->getSize(), $visibility, strtotime($object->getModifiedTime()), $object->mimeType, $result);
+            return new FileAttributes(
+                $this->useDisplayPaths ? $result['display_path'] : $result['virtual_path'],
+                (int)$object->getSize(),
+                $visibility,
+                strtotime($object->getModifiedTime()),
+                $object->mimeType,
+                $result);
         }
         if ($type === 'dir') {
             if ($this->useHasDir) {
                 $result['hasdir'] = isset($this->cacheHasDirs[$id]) ? $this->cacheHasDirs[$id] : false;
             }
-            return new DirectoryAttributes(rtrim($result['display_path'], '/'), $visibility, strtotime($object->getModifiedTime()), $result);
+            return new DirectoryAttributes(
+                rtrim($this->useDisplayPaths ? $result['display_path'] : $result['virtual_path'], '/'),
+                $visibility,
+                strtotime($object->getModifiedTime()),
+                $result);
         }
     }
 
