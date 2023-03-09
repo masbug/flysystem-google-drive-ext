@@ -1043,7 +1043,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $permissions = $file->getPermissions();
         $visibility = Visibility::PRIVATE;
 
-        if (! count($permissions)) {
+        if (empty($permissions)) {
             $permissions = $this->service->permissions->listPermissions($file->getId(), $this->applyDefaultParams([], 'permissions.list'));
             $file->setPermissions($permissions);
         }
