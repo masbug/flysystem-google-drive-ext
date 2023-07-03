@@ -1,39 +1,39 @@
 {
-    "name": "masbug/flysystem-google-drive-ext",
-    "description": "Flysystem adapter for Google Drive with seamless virtual<=>display path translation",
-    "keywords": [
-        "flysystem",
-        "google-drive",
-        "translated",
-        "extended",
-        "laravel"
-    ],
-    "license": "Apache-2.0",
-    "authors": [
-        {
-            "name": "Naoki Sawada",
-            "email": "hypweb@gmail.com"
-        },
-        {
-            "name": "Mitja Spes",
-            "email": "mitja@lxnav.com"
-        }
-    ],
-    "require": {
-        "php": "^7.2 | ^8.0",
-        "ext-mbstring": "*",
-        "guzzlehttp/guzzle": "^6.3 | ^7.0",
-        "league/flysystem": "^2.1.1|^3.0",
-        "google/apiclient": "^2.2",
-        "guzzlehttp/psr7": "^1.7|^2.0"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^8.0 | ^9.3",
-        "league/flysystem-adapter-test-utilities": "^2.0|^3.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "Masbug\\Flysystem\\": "src"
-        }
-    }
+	"name": "thotam/flysystem-google-drive-ext",
+	"description": "Flysystem adapter for Google Drive with seamless virtual<=>display path translation",
+	"keywords": [
+		"flysystem",
+		"google-drive",
+		"translated",
+		"extended",
+		"laravel"
+	],
+	"license": "Apache-2.0",
+	"authors": [
+		{
+			"name": "Naoki Sawada",
+			"email": "hypweb@gmail.com"
+		},
+		{
+			"name": "Mitja Spes",
+			"email": "mitja@lxnav.com"
+		}
+	],
+	"require": {
+		"php": "^7.2 | ^8.0",
+		"ext-mbstring": "*",
+		"guzzlehttp/guzzle": "^6.3 | ^7.0",
+		"league/flysystem": "^2.1.1|^3.0",
+		"google/apiclient": "^2.2",
+		"guzzlehttp/psr7": "^1.7|^2.0"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^8.0 | ^9.3",
+		"league/flysystem-adapter-test-utilities": "^2.0|^3.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"Masbug\\Flysystem\\": "src"
+		}
+	}
 }
