@@ -74,6 +74,15 @@ $adapter3 = new \Masbug\Flysystem\GoogleDriveAdapter(
     ]
 );
 
+// variant 4: connect to a folder shared with you
+$adapter4 = new \Masbug\Flysystem\GoogleDriveAdapter(
+    $service,
+    'My_App_Root',
+    [
+        'sharedFolderId' => '0GF9IioKDqJsRGk9PVA'
+    ]
+);
+
 $fs = new \League\Flysystem\Filesystem($adapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]));
 ```
 
@@ -159,6 +168,7 @@ GOOGLE_DRIVE_CLIENT_SECRET=xxx
 GOOGLE_DRIVE_REFRESH_TOKEN=xxx
 GOOGLE_DRIVE_FOLDER=
 #GOOGLE_DRIVE_TEAM_DRIVE_ID=xxx
+#GOOGLE_DRIVE_SHARED_FOLDER_ID=xxx
 
 # you can use more accounts, only add more configs
 #SECOND_GOOGLE_DRIVE_CLIENT_ID=xxx.apps.googleusercontent.com
@@ -166,6 +176,7 @@ GOOGLE_DRIVE_FOLDER=
 #SECOND_GOOGLE_DRIVE_REFRESH_TOKEN=xxx
 #SECOND_GOOGLE_DRIVE_FOLDER=backups
 #SECOND_DRIVE_TEAM_DRIVE_ID=xxx
+#SECOND_DRIVE_SHARED_FOLDER_ID=xxx
 ```
 
 ##### Add disks on `config/filesystems.php`
@@ -180,6 +191,7 @@ GOOGLE_DRIVE_FOLDER=
         'refreshToken' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
         'folder' => env('GOOGLE_DRIVE_FOLDER'), // without folder is root of drive or team drive
         //'teamDriveId' => env('GOOGLE_DRIVE_TEAM_DRIVE_ID'),
+        //'sharedFolderId' => env('GOOGLE_DRIVE_SHARED_FOLDER_ID'),
     ],
     // you can use more accounts, only add more disks and configs on .env
     // also you can use the same account and point to a diferent folders for each disk
@@ -214,6 +226,10 @@ class AppServiceProvider extends ServiceProvider { // can be a custom ServicePro
 
                 if (!empty($config['teamDriveId'] ?? null)) {
                     $options['teamDriveId'] = $config['teamDriveId'];
+                }
+
+                if (!empty($config['sharedFolderId'] ?? null)) {
+                    $options['sharedFolderId'] = $config['sharedFolderId'];
                 }
 
                 $client = new \Google\Client();

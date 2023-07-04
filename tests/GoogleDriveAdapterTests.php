@@ -49,6 +49,9 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
             if (!empty($config['GOOGLE_DRIVE_TEAM_DRIVE_ID'] ?? null)) {
                 $options['teamDriveId'] = $config['GOOGLE_DRIVE_TEAM_DRIVE_ID'];
             }
+            if (!empty($config['GOOGLE_DRIVE_SHARED_FOLDER_ID'] ?? null)) {
+                $options['sharedFolderId'] = $config['GOOGLE_DRIVE_SHARED_FOLDER_ID'];
+            }
             $client = new \Google\Client();
             $client->setClientId($config['GOOGLE_DRIVE_CLIENT_ID']);
             $client->setClientSecret($config['GOOGLE_DRIVE_CLIENT_SECRET']);
