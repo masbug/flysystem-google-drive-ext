@@ -285,7 +285,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 $this->rootId = $this->root;
                 $this->clearCache();
             }
-        } else if(isset($this->options['sharedFolderId'])) {
+        } else if (isset($this->options['sharedFolderId'])) {
             $this->root = (!$this->useDisplayPaths && $root !== null)
                 ? $root
                 : $this->options['sharedFolderId'];
@@ -293,11 +293,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $this->setPathPrefix('');
 
             if ($this->useDisplayPaths && $root !== null) {
-                    // get real root id
-                    $this->root = $this->toSingleVirtualPath($root, false, true, true, true);
-                    // reset cache
-                    $this->rootId = $this->root;
-                    $this->clearCache();
+                // get real root id
+                $this->root = $this->toSingleVirtualPath($root, false, true, true, true);
+                // reset cache
+                $this->rootId = $this->root;
+                $this->clearCache();
             }
         } else {
             if (!$this->useDisplayPaths || $root === null) {
