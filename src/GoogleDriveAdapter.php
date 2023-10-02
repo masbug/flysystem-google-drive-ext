@@ -1401,7 +1401,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
         } else {
             $mime = $mimeMap['default'];
         }
-        $mime = rawurlencode($mime);
 
         $params = $this->applyDefaultParams(['mimeType' => $mime], 'files.get');
         return 'https://www.googleapis.com/drive/v3/files/'.$file->getId().'/export?'.http_build_query($params);
