@@ -1000,7 +1000,7 @@ class GoogleDriveAdapter extends AbstractAdapter
         $permissions = $file->getPermissions();
         $visibility = AdapterInterface::VISIBILITY_PRIVATE;
 
-        if (! count($permissions)) {
+        if (! count($permissions ?: [])) {
             $permissions = $this->service->permissions->listPermissions($file->getId(), $this->applyDefaultParams([], 'permissions.list'));
             $file->setPermissions($permissions);
         }
