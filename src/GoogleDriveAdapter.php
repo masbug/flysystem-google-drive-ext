@@ -563,8 +563,68 @@ class GoogleDriveAdapter implements FilesystemAdapter
             throw UnableToMoveFile::fromLocationTo($source, $destination, new Exception("File {$source} not exist."));
         }
         try {
-            $this->copy($source, $destination, $config);
-            $this->delete($source);
+            $this->refreshToken();
+            $path = $this->prefixer->prefixPath($source);
+            $newpath = $this->prefixer->prefixPath($destination);
+            if ($this->useDisplayPaths) {
+                $srcId = $this->toVirtualPath($path, false, true);
+                $newpathDir = self::dirname($newpath);
+                if ($this->fileExists($newpathDir)) {
+                    $this->delete($newpath);
+                }
+                $toPath = $this->toSingleVirtualPath($newpathDir, false, false, true, true);
+                if ($toPath === false) {
+                    throw UnableToMoveFile::fromLocationTo($path, $newpath);
+                }
+                if ($toPath === '') {
+                    $toPath = $this->root;
+                }
+                $newParentId = $toPath;
+                $fileName = basename($newpath);
+            } else {
+                [, $srcId] = $this->splitPath($path);
+                [$newParentId, $fileName] = $this->splitPath($newpath);
+            }
+
+            $params = [];
+            $origenFile = $this->getFileObject($srcId);
+            $parents = $origenFile->getParents();
+            if (!in_array($newParentId, $parents)) {
+                $params = array_merge($params, [
+                    'addParents' => [$newParentId],
+                    'removeParents' => $parents,
+                ]);
+            }
+
+            if (!empty($params) || $fileName !== $origenFile->getName()) {
+                $file = new DriveFile();
+                $file->setName($fileName);
+                $this->service->files->update(/** @scrutinizer ignore-type */ $srcId, $file, $this->applyDefaultParams($params, 'files.update'));
+            }
+
+            $newFile = $this->service->files->get($srcId, ['fields' => self::FETCHFIELDS_GET]);
+            if ($newFile instanceof DriveFile) {
+                $id = $newFile->getId();
+                $this->cacheFileObjects[$id] = $newFile;
+                $this->cacheObjects([$id => $newFile]);
+                if (isset($this->cacheHasDirs[$srcId])) {
+                    $this->cacheHasDirs[$id] = $this->cacheHasDirs[$srcId];
+                }
+                if ($this->useSinglePathTransaction && $this->useDisplayPaths) {
+                    $this->cachedPaths[trim($newpathDir.'/'.$fileName, '/')] = $id;
+                }
+
+                $srcFile = $this->cacheFileObjects[$srcId];
+                $visibility = $this->getRawVisibility($srcFile);
+
+                if ($config->get('visibility') === Visibility::PUBLIC || $visibility === Visibility::PUBLIC) {
+                    $this->publish($id);
+                } else {
+                    $this->unPublish($id);
+                }
+                $this->resetRequest([$id, $newParentId]);
+                return;
+            }
         } catch (Throwable $exception) {
             throw UnableToMoveFile::fromLocationTo($source, $destination, $exception);
         }
