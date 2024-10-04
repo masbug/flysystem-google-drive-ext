@@ -54,7 +54,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      *
      * @var string
      */
-    const FETCHFIELDS_LIST = 'files(id,mimeType,createdTime,modifiedTime,name,parents,permissions,size,webContentLink,shortcutDetails),nextPageToken';
+    const FETCHFIELDS_LIST = 'files(id,mimeType,createdTime,modifiedTime,name,parents,permissions,size,webContentLink,webViewLink,shortcutDetails),nextPageToken';
 
     /**
      * Fetch fields setting for get
@@ -995,7 +995,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 return 'https://drive.google.com/drive/folders/'.$obj->id.'?usp=sharing';
             }
         }
-        return false;
+        return '';
     }
 
     /**
