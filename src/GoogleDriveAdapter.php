@@ -28,6 +28,7 @@ use League\Flysystem\UnableToWriteFile;
 use League\Flysystem\Visibility;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Throwable;
 
@@ -550,7 +551,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
             return;
         }
 
-        throw UnableToCopyFile::fromLocationTo($path, $newpath, 'Unable To Copy File');
+        throw UnableToCopyFile::fromLocationTo($path, $newpath);
     }
 
     /**
@@ -560,7 +561,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function move(string $source, string $destination, Config $config): void
     {
         if (!$this->fileExists($source)) {
-            throw UnableToMoveFile::fromLocationTo($source, $destination, new Exception("File {$source} not exist."));
+            throw UnableToMoveFile::fromLocationTo($source, $destination);
         }
         try {
             $this->refreshToken();
@@ -768,7 +769,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
         } else {
             [, $fileId] = $this->splitPath($path);
         }
-        /** @var RequestInterface $response */
+        /** @var ResponseInterface $response */
         if (($response = $this->service->files->get(/** @scrutinizer ignore-type */ $fileId, $this->applyDefaultParams(['alt' => 'media'], 'files.get')))) {
             return (string)$response->getBody();
         }
@@ -950,7 +951,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         if (!isset($fileAttributes) || !$fileAttributes instanceof FileAttributes) {
             if (!$type) {
-                throw UnableToRetrieveMetadata::create($path, '', $exception);
+                throw UnableToRetrieveMetadata::create($path, '', '', $exception);
             } else {
                 throw UnableToRetrieveMetadata::$type($path, '', $exception);
             }

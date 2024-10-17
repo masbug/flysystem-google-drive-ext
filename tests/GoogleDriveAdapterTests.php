@@ -12,16 +12,6 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
 {
     protected $exceptionTypeToRetryOn = null;
 
-    /**
-     * @var string
-     */
-    private static $adapterPrefix = 'ci';
-
-    public static function setUpBeforeClass(): void
-    {
-        static::$adapterPrefix = 'ci/'.bin2hex(random_bytes(10));
-    }
-
     protected function retryOnException(string $className, int $timout = 2): void
     {
         $this->exceptionTypeToRetryOn = null;
