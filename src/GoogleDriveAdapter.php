@@ -1342,9 +1342,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 $fileObjs = $gFiles->listFiles($this->applyDefaultParams($parameters, 'files.list'));
                 if ($fileObjs instanceof FileList) {
                     foreach ($fileObjs as $obj) {
+                        try {
+                            $result = $this->normaliseObject($obj, $dirname);
+                        } catch (UnableToReadFile) {
+                            // Skip shortcuts whose targets have been deleted or are inaccessible
+                            continue;
+                        }
+
                         $id = $obj->getId();
                         $this->cacheFileObjects[$id] = $obj;
-                        $result = $this->normaliseObject($obj, $dirname);
                         $results[$id] = $result;
                         if ($result->isDir()) {
                             if ($this->useHasDir) {
