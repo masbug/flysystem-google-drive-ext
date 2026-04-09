@@ -1277,7 +1277,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
 
         $result['virtual_path'] = ($dirname ? ($dirname.'/') : '').$id;
-        $result['display_path'] = $this->useDisplayPaths || $this->showDisplayPaths ? $this->toDisplayPath($result['virtual_path']) : $result['virtual_path'];
+        if ($this->useDisplayPaths || $this->showDisplayPaths) {
+            $cachedDisplayPaths = $this->buildPathFromCacheFileObjects($id);
+            $result['display_path'] = !empty($cachedDisplayPaths) ? reset($cachedDisplayPaths) : $this->toDisplayPath($result['virtual_path']);
+        } else {
+            $result['display_path'] = $result['virtual_path'];
+        }
 
         if ($type === 'file') {
             $result['filename'] = $path_parts['filename'];
@@ -1342,15 +1347,14 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 $fileObjs = $gFiles->listFiles($this->applyDefaultParams($parameters, 'files.list'));
                 if ($fileObjs instanceof FileList) {
                     foreach ($fileObjs as $obj) {
+                        $id = $obj->getId();
+                        $this->cacheFileObjects[$id] = $obj;
                         try {
                             $result = $this->normaliseObject($obj, $dirname);
                         } catch (UnableToReadFile) {
                             // Skip shortcuts whose targets have been deleted or are inaccessible
                             continue;
                         }
-
-                        $id = $obj->getId();
-                        $this->cacheFileObjects[$id] = $obj;
                         $results[$id] = $result;
                         if ($result->isDir()) {
                             if ($this->useHasDir) {
