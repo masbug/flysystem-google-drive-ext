@@ -65,6 +65,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
     const FETCHFIELDS_GET = 'id,name,mimeType,createdTime,modifiedTime,parents,permissions,size,webContentLink,webViewLink';
 
     /**
+     * Maximum number of sub-requests allowed in a single Google Drive batch request.
+     *
+     * @var int
+     */
+    const BATCH_REQUEST_LIMIT = 100;
+
+    /**
      * MIME type of directory
      *
      * @var string
@@ -1311,6 +1318,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
     /**
      * Get items array of target directory
      *
+     * Uses a single queue of pending list requests. Each outer iteration submits the queue
+     * as one batched HTTP request, then enqueues (a) subdirectories discovered (when recursive)
+     * and (b) pagination continuations. This collapses the per-level and per-page roundtrip cost.
+     *
      * @param  string  $dirname  itemId path
      * @param  bool  $recursive
      * @param  int  $maxResults
@@ -1324,59 +1335,107 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
         $maxResults = min($maxResults, 1000);
         $results = [];
-        $parameters = [
-            'pageSize' => $maxResults ?: 1000,
-            'fields' => self::FETCHFIELDS_LIST,
-            'orderBy' => 'folder,modifiedTime,name',
-            'spaces' => $this->spaces,
-            'q' => sprintf('trashed = false and "%s" in parents', $itemId)
-        ];
-        if ($query) {
-            $parameters['q'] .= ' and ('.$query.')';
-        }
-        $pageToken = null;
-        $gFiles = $this->service->files;
-        $this->cacheHasDirs[$itemId] = false;
         $setHasDir = [];
 
-        do {
+        $service = $this->service;
+        $client = $service->getClient();
+        $gFiles = $service->files;
+
+        // Queue entry: ['id' => parentId, 'dirname' => virtualPath, 'pageToken' => ?string]
+        $queue = [[
+            'id' => $itemId,
+            'dirname' => $dirname,
+            'pageToken' => null,
+        ]];
+
+        while (!empty($queue)) {
+            $chunk = array_splice($queue, 0, self::BATCH_REQUEST_LIMIT);
+
+            $client->setUseBatch(true);
             try {
-                if ($pageToken) {
-                    $parameters['pageToken'] = $pageToken;
+                $batch = $service->createBatch();
+                $batchMap = [];
+                foreach ($chunk as $i => $entry) {
+                    $parameters = [
+                        'pageSize' => $maxResults ?: 1000,
+                        'fields' => self::FETCHFIELDS_LIST,
+                        'orderBy' => 'folder,modifiedTime,name',
+                        'spaces' => $this->spaces,
+                        'q' => sprintf('trashed = false and "%s" in parents', $entry['id'])
+                    ];
+                    if ($query) {
+                        $parameters['q'] .= ' and ('.$query.')';
+                    }
+                    if ($entry['pageToken'] !== null) {
+                        $parameters['pageToken'] = $entry['pageToken'];
+                    }
+                    /** @var RequestInterface $request */
+                    $request = $gFiles->listFiles($this->applyDefaultParams($parameters, 'files.list'));
+                    $key = (string)($i + 1);
+                    $batch->add($request, $key);
+                    $batchMap['response-'.$key] = $entry;
                 }
-                $fileObjs = $gFiles->listFiles($this->applyDefaultParams($parameters, 'files.list'));
-                if ($fileObjs instanceof FileList) {
-                    foreach ($fileObjs as $obj) {
-                        $id = $obj->getId();
-                        $this->cacheFileObjects[$id] = $obj;
-                        try {
-                            $result = $this->normaliseObject($obj, $dirname);
-                        } catch (UnableToReadFile) {
-                            // Skip shortcuts whose targets have been deleted or are inaccessible
-                            continue;
+                try {
+                    $batchResults = $batch->execute();
+                } catch (Throwable $e) {
+                    $batchResults = [];
+                }
+            } finally {
+                $client->setUseBatch(false);
+            }
+
+            foreach ($batchResults as $key => $fileObjs) {
+                if (!($fileObjs instanceof FileList)) {
+                    // Failed sub-requests come back as exceptions; skip them.
+                    continue;
+                }
+                $entry = $batchMap[$key];
+                $parentId = $entry['id'];
+                $parentDirname = $entry['dirname'];
+
+                // Initialise the hasDir flag on the first page for this directory.
+                if ($entry['pageToken'] === null) {
+                    $this->cacheHasDirs[$parentId] = false;
+                }
+
+                foreach ($fileObjs as $obj) {
+                    $id = $obj->getId();
+                    $this->cacheFileObjects[$id] = $obj;
+                    try {
+                        $result = $this->normaliseObject($obj, $parentDirname);
+                    } catch (UnableToReadFile) {
+                        // Skip shortcuts whose targets have been deleted or are inaccessible
+                        continue;
+                    }
+                    $results[$id] = $result;
+                    if ($result->isDir()) {
+                        if ($this->useHasDir) {
+                            $setHasDir[$id] = $id;
                         }
-                        $results[$id] = $result;
-                        if ($result->isDir()) {
-                            if ($this->useHasDir) {
-                                $setHasDir[$id] = $id;
-                            }
-                            if ($this->cacheHasDirs[$itemId] === false) {
-                                $this->cacheHasDirs[$itemId] = true;
-                                unset($setHasDir[$itemId]);
-                            }
-                            if ($recursive) {
-                                $results = array_merge($results, $this->getItems($result->extraMetadata()['virtual_path'], true, $maxResults, $query));
-                            }
+                        if ($this->cacheHasDirs[$parentId] === false) {
+                            $this->cacheHasDirs[$parentId] = true;
+                            unset($setHasDir[$parentId]);
+                        }
+                        if ($recursive) {
+                            $queue[] = [
+                                'id' => $id,
+                                'dirname' => $result->extraMetadata()['virtual_path'],
+                                'pageToken' => null,
+                            ];
                         }
                     }
-                    $pageToken = $fileObjs->getNextPageToken();
-                } else {
-                    $pageToken = null;
                 }
-            } catch (Throwable $e) {
-                $pageToken = null;
+
+                $nextPageToken = $fileObjs->getNextPageToken();
+                if ($nextPageToken && $maxResults === 0) {
+                    $queue[] = [
+                        'id' => $parentId,
+                        'dirname' => $parentDirname,
+                        'pageToken' => $nextPageToken,
+                    ];
+                }
             }
-        } while ($pageToken && $maxResults === 0);
+        }
 
         if ($setHasDir) {
             $results = $this->setHasDir($setHasDir, $results);
