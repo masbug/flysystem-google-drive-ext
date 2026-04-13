@@ -83,6 +83,16 @@ $adapter4 = new \Masbug\Flysystem\GoogleDriveAdapter(
     ]
 );
 
+// variant 5: connect to a folder shared with you, which is on a shared team drive
+$adapter5 = new \Masbug\Flysystem\GoogleDriveAdapter(
+    $service,
+    'My_App_Root',
+    [
+        'sharedFolderId' => '0GF9IioKDqJsRGk9PVA'
+    ]
+);
+$adapter5->enableTeamDriveSupport();
+
 $fs = new \League\Flysystem\Filesystem($adapter, new \League\Flysystem\Config([\League\Flysystem\Config::OPTION_VISIBILITY => \League\Flysystem\Visibility::PRIVATE]));
 ```
 
