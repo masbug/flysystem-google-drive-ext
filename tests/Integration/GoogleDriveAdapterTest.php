@@ -53,7 +53,7 @@ class GoogleDriveAdapterTest extends FilesystemAdapterTestCase
                 $options['sharedFolderId'] = $config['GOOGLE_DRIVE_SHARED_FOLDER_ID'];
             }
 
-            $client = new Client();
+            $client = new Client;
             $client->setClientId($config['GOOGLE_DRIVE_CLIENT_ID']);
             $client->setClientSecret($config['GOOGLE_DRIVE_CLIENT_SECRET']);
             $client->refreshToken($config['GOOGLE_DRIVE_REFRESH_TOKEN']);
@@ -77,7 +77,7 @@ class GoogleDriveAdapterTest extends FilesystemAdapterTestCase
     {
         $this->runScenario(function () {
             $adapter = $this->adapter();
-            $adapter->write('0/file.txt', 'contents', new Config());
+            $adapter->write('0/file.txt', 'contents', new Config);
             $contents = $adapter->read('0/file.txt');
             $this->assertEquals('contents', $contents);
         });
