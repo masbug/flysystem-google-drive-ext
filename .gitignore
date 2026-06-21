@@ -1,10 +1,15 @@
 .settings
 .buildpath
 .project
+.idea
+.vscode
 composer.lock
 composer.phar
 google-drive-service-account.json
 build
 vendor
 .phpunit.result.cache
-.php_cs.cache
+.phpunit.cache
+.php-cs-fixer.cache
+.pint.cache
+.env

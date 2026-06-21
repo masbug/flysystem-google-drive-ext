@@ -1,0 +1,15 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # Google\Service\Drive\DriveFile exposes API fields via magic properties (mimeType, shortcutDetails, parents, id, ...)
+        - '#Access to an undefined property Google\\Service\\Drive\\DriveFile::\$[a-zA-Z]+#'
+        - '#Access to an undefined property Google\\Service\\Drive\\Permission::\$[a-zA-Z]+#'
+        # The Google API client's batch->execute()/files->* can throw at runtime but is not annotated @throws,
+        # so PHPStan reports the (necessary) defensive catch as dead.
+        -
+            message: '#Dead catch - Throwable is never thrown in the try block#'
+            path: src/GoogleDriveAdapter.php

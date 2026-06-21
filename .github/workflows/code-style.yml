@@ -1,0 +1,31 @@
+name: code style
+
+on:
+  push:
+    branches: [ "2.x", "3.x", "master", "main" ]
+  pull_request:
+    branches: [ "2.x", "3.x", "master", "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  pint:
+    runs-on: ubuntu-latest
+    name: Pint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Check code style (Pint)
+        run: vendor/bin/pint --test
