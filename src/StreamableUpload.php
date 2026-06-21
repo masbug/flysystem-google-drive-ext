@@ -228,7 +228,7 @@ class StreamableUpload
      * @param  string  $resumeUri  The resume-URI of the unfinished, resumable upload.
      * @return false|mixed
      */
-    public function resume($resumeUri)
+    public function resume(string $resumeUri)
     {
         $this->resumeUri = $resumeUri;
         $headers = [
@@ -335,10 +335,15 @@ class StreamableUpload
         if ($body) {
             $headers = [
                 'content-type' => 'application/json; charset=UTF-8',
-                'content-length' => $body->getSize(),
                 'x-upload-content-type' => $this->mimeType,
                 'expect' => '',
             ];
+            // getSize() can be null for streams of unknown size; only send a
+            // content-length header when the size is actually known.
+            $bodySize = $body->getSize();
+            if ($bodySize !== null) {
+                $headers['content-length'] = $bodySize;
+            }
             if ($this->size !== null) {
                 $headers['x-upload-content-length'] = $this->size;
             }
