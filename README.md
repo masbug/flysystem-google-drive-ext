@@ -1,10 +1,10 @@
 # Flysystem adapter for Google Drive with seamless virtual<=>display path translation
 
-[![Flysystem API version](https://img.shields.io/badge/Flysystem%20API-V2-blue?style=flat-square)](https://github.com/thephpleague/flysystem/)
+[![Flysystem API version](https://img.shields.io/badge/Flysystem%20API-V3-blue?style=flat-square)](https://github.com/thephpleague/flysystem/)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://img.shields.io/travis/com/masbug/flysystem-google-drive-ext/2.x.svg?style=flat-square)](https://travis-ci.com/masbug/flysystem-google-drive-ext)
-[![StyleCI](https://styleci.io/repos/113434522/shield?branch=2.x)](https://styleci.io/repos/113434522)
+[![Tests](https://img.shields.io/github/actions/workflow/status/masbug/flysystem-google-drive-ext/tests.yml?branch=3.x&label=tests&style=flat-square)](https://github.com/masbug/flysystem-google-drive-ext/actions/workflows/tests.yml)
+[![PHP Version](https://img.shields.io/packagist/php-v/masbug/flysystem-google-drive-ext?style=flat-square)](https://www.php.net/)
 [![Total Downloads](https://img.shields.io/packagist/dt/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 
 Google uses unique IDs for each folder and file. This makes it difficult to integrate with other storage services which use normal paths.
@@ -13,15 +13,29 @@ This [Flysystem adapter](https://github.com/thephpleague/flysystem) works around
 
 For example: virtual path `/Xa3X9GlR6EmbnY1RLVTk5VUtOVkk/0B3X9GlR6EmbnY1RLVTk5VUtOVkk` becomes `/My Nice Dir/myFile.ext` and all ID handling is hidden.
 
+## Requirements
+
+| Package version | PHP        | Flysystem | Laravel        |
+|-----------------|------------|-----------|----------------|
+| `^3.0`          | `>= 8.2`   | `^3.0`    | `9.x` – `13.x` |
+| `^2.0`          | `7.2 – 8.x`| `^2.1`/`^3.0` | `9.x` – `12.x` |
+| `^1.0`          | `>= 5.5`   | `^1.0`    | `<= 8.x`       |
+
 ## Installation
 
-- For **Flysystem V2/V3** or **Laravel >= 9.x.x**
+- For **PHP >= 8.2** / **Flysystem V3** / **Laravel 9.x – 13.x**
 
 ```bash
 composer require masbug/flysystem-google-drive-ext
 ```
 
-- For **Flysystem V1** or **Laravel <= 8.x.x** use 1.x.x version of the package
+- For **PHP 7.2 – 8.x** / **Flysystem V2/V3** use the 2.x version
+
+```bash
+composer require masbug/flysystem-google-drive-ext:"^2.0"
+```
+
+- For **Flysystem V1** or **Laravel <= 8.x.x** use the 1.x version
 
 ```bash
 composer require masbug/flysystem-google-drive-ext:"^1.0.0"
