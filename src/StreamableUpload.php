@@ -172,7 +172,7 @@ class StreamableUpload
             $lastBytePos = $this->progress + $size - 1;
             $headers = [
                 'content-range'  => 'bytes '.$this->progress.'-'.$lastBytePos.'/'.$this->size,
-                'content-length' => $size,
+                'content-length' => (string) $size,
                 'expect'         => '',
             ];
         }
@@ -242,7 +242,7 @@ class StreamableUpload
         $this->resumeUri = $resumeUri;
         $headers = [
             'content-range'  => 'bytes */'.$this->size,
-            'content-length' => 0,
+            'content-length' => '0',
         ];
         $httpRequest = new Request(
             'PUT',
@@ -348,12 +348,12 @@ class StreamableUpload
         if ($body) {
             $headers = [
                 'content-type'          => 'application/json; charset=UTF-8',
-                'content-length'        => $body->getSize(),
+                'content-length'        => (string) $body->getSize(),
                 'x-upload-content-type' => $this->mimeType,
                 'expect'                => '',
             ];
             if (is_int($this->size)) {
-                $headers['x-upload-content-length'] = $this->size;
+                $headers['x-upload-content-length'] = (string) $this->size;
             }
 
             foreach ($headers as $key => $value) {
