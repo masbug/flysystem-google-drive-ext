@@ -55,6 +55,73 @@ class DownloadSecurityTest extends TestCase
         $this->assertFalse(self::invoke('hostMatchesDomain', null, 'google.com', ''));
     }
 
+    public function testRequestToGoogleHostHasTokenAndMatchingCookies(): void
+    {
+        $cookies = [
+            'googleusercontent.com' => ['AUTH' => 'AUTH=abc', 'NID' => 'NID=1'],
+            'www.googleapis.com' => ['OTHER' => 'OTHER=2'],
+        ];
+
+        $request = self::invoke('buildDownloadRequest', null, 'doc-0c.googleusercontent.com', '/download?id=1', 'secret-token', $cookies);
+
+        $this->assertSame(
+            "GET /download?id=1 HTTP/1.1\r\n".
+            "Host: doc-0c.googleusercontent.com\r\n".
+            "Authorization: Bearer secret-token\r\n".
+            "Cookie: AUTH=abc; NID=1\r\n".
+            "Connection: Close\r\n\r\n",
+            $request
+        );
+    }
+
+    public function testRequestToDifferentHostHasNoCredentials(): void
+    {
+        $cookies = ['googleusercontent.com' => ['AUTH' => 'AUTH=abc'], 'example.com' => ['X' => 'X=1']];
+
+        $request = self::invoke('buildDownloadRequest', null, 'example.com', '/file', 'secret-token', $cookies);
+
+        $this->assertSame("GET /file HTTP/1.1\r\nHost: example.com\r\nConnection: Close\r\n\r\n", $request);
+        $this->assertStringNotContainsString('secret-token', $request);
+        $this->assertStringNotContainsString('Cookie', $request);
+    }
+
+    public function testResponseCookieIsStoredForTheHost(): void
+    {
+        $cookies = self::invoke('addResponseCookie', null, [], 'www.googleapis.com', 'Set-Cookie: SID=abc123; Path=/; Secure; HttpOnly');
+
+        $this->assertSame(['www.googleapis.com' => ['SID' => 'SID=abc123']], $cookies);
+    }
+
+    public function testResponseCookieWithDomainAttribute(): void
+    {
+        $cookies = self::invoke('addResponseCookie', null, [], 'doc-0c.googleusercontent.com', 'set-cookie: AUTH=abc; Domain=.GoogleUserContent.com; Path=/');
+
+        $this->assertSame(['googleusercontent.com' => ['AUTH' => 'AUTH=abc']], $cookies);
+    }
+
+    public function testResponseCookieWithDomainOfDifferentSiteStaysWithTheHost(): void
+    {
+        $cookies = self::invoke('addResponseCookie', null, [], 'www.googleapis.com', 'Set-Cookie: SID=abc; Domain=google.com');
+
+        $this->assertSame(['www.googleapis.com' => ['SID' => 'SID=abc']], $cookies);
+    }
+
+    public function testResponseCookieFromDifferentHostIsIgnored(): void
+    {
+        $cookies = self::invoke('addResponseCookie', null, [], 'example.com', 'Set-Cookie: SID=abc; Domain=google.com');
+
+        $this->assertSame([], $cookies);
+    }
+
+    public function testLaterCookieWithSameNameReplacesTheValue(): void
+    {
+        $cookies = self::invoke('addResponseCookie', null, [], 'www.googleapis.com', 'Set-Cookie: SID=old');
+        $cookies = self::invoke('addResponseCookie', null, $cookies, 'www.googleapis.com', 'Set-Cookie: SID=new');
+        $cookies = self::invoke('addResponseCookie', null, $cookies, 'www.googleapis.com', 'Content-Type: text/plain');
+
+        $this->assertSame(['www.googleapis.com' => ['SID' => 'SID=new']], $cookies);
+    }
+
     public static function invalidUrls(): array
     {
         return [

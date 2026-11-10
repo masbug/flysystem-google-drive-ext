@@ -930,7 +930,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
             throw UnableToReadFile::fromLocation($location, 'Download URL is not an absolute HTTPS URL.');
         }
         $host = strtolower($url['host']);
-        $trusted = self::isTrustedGoogleHost($host);
 
         $errno = 0;
         $errstr = '';
@@ -940,23 +939,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
         }
         stream_set_timeout($stream, 300);
 
-        $query = isset($url['query']) ? '?'.$url['query'] : '';
-        fwrite($stream, 'GET '.($url['path'] ?? '/')."{$query} HTTP/1.1\r\n");
-        fwrite($stream, "Host: {$host}\r\n");
-        if ($trusted) {
-            fwrite($stream, "Authorization: Bearer {$access_token}\r\n");
-            $send = [];
-            foreach ($cookies as $domain => $pairs) {
-                if (self::hostMatchesDomain($host, (string) $domain)) {
-                    $send[] = implode('; ', $pairs);
-                }
-            }
-            if ($send) {
-                fwrite($stream, 'Cookie: '.implode('; ', $send)."\r\n");
-            }
-        }
-        fwrite($stream, "Connection: Close\r\n");
-        fwrite($stream, "\r\n");
+        $target = ($url['path'] ?? '/').(isset($url['query']) ? '?'.$url['query'] : '');
+        fwrite($stream, self::buildDownloadRequest($host, $target, $access_token, $cookies));
 
         $redirect = '';
         while (($res = trim((string) fgets($stream))) !== '') {
@@ -964,14 +948,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if (preg_match('/^Location:\s*(.+)$/i', $res, $m)) {
                 $redirect = $m[1];
             }
-            // fetch cookie; keep only the cookies that a Google host sets
-            if ($trusted && preg_match('/^Set-Cookie:\s*(([^=;\s]+)=[^;]*)/i', $res, $c1)) {
-                $domain = $host;
-                if (preg_match('/;\s*domain=\.?([^;\s]+)/i', $res, $c2) && self::hostMatchesDomain($host, $c2[1])) {
-                    $domain = strtolower($c2[1]);
-                }
-                $cookies[$domain][$c1[2]] = $c1[1];
-            }
+            // fetch cookie
+            $cookies = self::addResponseCookie($cookies, $host, $res);
         }
         if ($redirect !== '') {
             fclose($stream);
@@ -982,6 +960,58 @@ class GoogleDriveAdapter implements FilesystemAdapter
             return $this->streamDownload($location, $redirect, $access_token, $cookies, $redirects + 1);
         }
         return $stream;
+    }
+
+    /**
+     * Build the HTTP request for a download.
+     *
+     * Only a Google host gets the access token and the cookies.
+     *
+     * @param  string  $host  Host name in lower case
+     * @param  string  $target  Path and query of the URL
+     * @param  string  $access_token
+     * @param  array  $cookies  [domain => [name => 'name=value']]
+     * @return string
+     */
+    private static function buildDownloadRequest(string $host, string $target, string $access_token, array $cookies): string
+    {
+        $request = "GET {$target} HTTP/1.1\r\nHost: {$host}\r\n";
+        if (self::isTrustedGoogleHost($host)) {
+            $request .= "Authorization: Bearer {$access_token}\r\n";
+            $send = [];
+            foreach ($cookies as $domain => $pairs) {
+                if (self::hostMatchesDomain($host, (string) $domain)) {
+                    $send[] = implode('; ', $pairs);
+                }
+            }
+            if ($send) {
+                $request .= 'Cookie: '.implode('; ', $send)."\r\n";
+            }
+        }
+        return $request."Connection: Close\r\n\r\n";
+    }
+
+    /**
+     * Add the cookie of a Set-Cookie response header to the cookie list.
+     *
+     * The list keeps only the cookies that a Google host sets. A Domain attribute that does not
+     * match the host has no effect, and the cookie stays with the host.
+     *
+     * @param  array  $cookies  [domain => [name => 'name=value']]
+     * @param  string  $host  Host name in lower case
+     * @param  string  $header  One response header line
+     * @return array
+     */
+    private static function addResponseCookie(array $cookies, string $host, string $header): array
+    {
+        if (self::isTrustedGoogleHost($host) && preg_match('/^Set-Cookie:\s*(([^=;\s]+)=[^;]*)/i', $header, $c1)) {
+            $domain = $host;
+            if (preg_match('/;\s*domain=\.?([^;\s]+)/i', $header, $c2) && self::hostMatchesDomain($host, $c2[1])) {
+                $domain = strtolower($c2[1]);
+            }
+            $cookies[$domain][$c1[2]] = $c1[1];
+        }
+        return $cookies;
     }
 
     /**
