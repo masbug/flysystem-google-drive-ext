@@ -33,8 +33,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Throwable;
 
-define('DEBUG_ME', false);
-
 class GoogleDriveAdapter implements FilesystemAdapter
 {
     /**
@@ -1017,17 +1015,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $this->refreshToken();
         $path = $this->prefixer->prefixPath($directory);
         if ($this->useDisplayPaths) {
-            $time = microtime(true);
             $vp = $this->toVirtualPath($path ?? '');
-            $elapsed = (microtime(true) - $time) * 1000.0;
             if (!is_array($vp)) {
                 $vp = [$vp];
             }
 
             foreach ($vp as $path) {
-                if (DEBUG_ME) {
-                    echo 'Converted display path to virtual path ['.number_format($elapsed, 1).'ms]: '.$path."\n";
-                }
                 foreach (array_values($this->getItems($path, $recursive)) as $item) {
                     yield $item;
                 }
@@ -1754,9 +1747,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $media = new StreamableUpload($client, $request, $mime, $stream, true, self::MAX_CHUNK_SIZE);
             $media->setFileSize($size);
             do {
-                if (DEBUG_ME) {
-                    echo "* Uploading next chunk.\n";
-                }
                 $status = $media->nextChunk();
             } while ($status === false);
 
@@ -1828,10 +1818,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
                 $results = [];
                 foreach ($fetch as $itemId => $value) {
-                    if (DEBUG_ME) {
-                        echo "*** FETCH *** $itemId\n";
-                    }
-
                     /** @var RequestInterface $request */
                     $request = $this->service->files->get($itemId, $opts);
                     $batch->add($request, $itemId);
@@ -1987,10 +1973,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
             if ($value instanceof DriveFile) {
                 $complete_paths = $this->buildPathFromCacheFileObjects($value->getId());
                 foreach ($complete_paths as $itemId => $path) {
-                    if (DEBUG_ME) {
-                        echo 'Complete path: '.$path.' ['.$itemId."]\n";
-                    }
-
                     if (!isset($this->cachedPaths[$path])) {
                         $this->cachedPaths[$path] = $itemId;
                     } else {
@@ -2001,17 +1983,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
                                     $this->cachedPaths[$path],
                                     $itemId
                                 ];
-
-                                if (DEBUG_ME) {
-                                    echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";
-                                }
                             }
                         } else {
                             if (!in_array($itemId, $this->cachedPaths[$path])) {
                                 array_push($this->cachedPaths[$path], $itemId);
-                                if (DEBUG_ME) {
-                                    echo 'Caching [DUP]: '.$path.' => '.$itemId."\n";
-                                }
                             }
                         }
                     }
@@ -2115,18 +2090,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     continue;
                 }
                 $this->markRequest($id, $is_last);
-                if (DEBUG_ME) {
-                    echo 'New req: '.$id;
-                }
 
                 $query = $is_last ? [] : ['mimeType = "'.self::DIRMIME.'"'];
                 if ($this->useSinglePathTransaction) {
                     $query[] = "name = '".self::escapeQueryValue($token)."'";
                 }
                 $items[] = $this->getItems($id, false, 0, implode(' and ', $query));
-                if (DEBUG_ME) {
-                    echo " ...done\n";
-                }
             }
             if (!empty($items)) {
                 /** @noinspection SlowArrayOperationsInLoopInspection */
@@ -2142,9 +2111,6 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 // update cache
                 if (!isset($this->cachedPaths[$fullPath])) {
                     $this->cachedPaths[$fullPath] = $itemId;
-                    if (DEBUG_ME) {
-                        echo 'Caching: '.$fullPath.' => '.$itemId."\n";
-                    }
                 } else {
                     if (!is_array($this->cachedPaths[$fullPath])) {
                         if ($itemId !== $this->cachedPaths[$fullPath]) {
@@ -2153,17 +2119,10 @@ class GoogleDriveAdapter implements FilesystemAdapter
                                 $this->cachedPaths[$fullPath],
                                 $itemId
                             ];
-
-                            if (DEBUG_ME) {
-                                echo 'Caching [DUP]: '.$fullPath.' => '.$itemId."\n";
-                            }
                         }
                     } else {
                         if (!in_array($itemId, $this->cachedPaths[$fullPath])) {
                             $this->cachedPaths[$fullPath][] = $itemId;
-                            if (DEBUG_ME) {
-                                echo 'Caching [DUP]: '.$fullPath.' => '.$itemId."\n";
-                            }
                         }
                     }
                 }
