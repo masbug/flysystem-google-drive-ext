@@ -1,27 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd"
-    bootstrap="vendor/autoload.php"
-    backupGlobals="false"
-    backupStaticAttributes="false"
-    colors="true"
-    convertErrorsToExceptions="false"
-    convertNoticesToExceptions="false"
-    convertWarningsToExceptions="false"
-    processIsolation="false"
-    stopOnFailure="false"
-    verbose="true"
->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
   <testsuites>
-    <testsuite name="Flysystem Google Drive Adapter Test Suite">
-      <directory suffix="Tests.php">tests/</directory>
+    <testsuite name="Unit">
+      <directory>tests/Unit</directory>
+    </testsuite>
+    <testsuite name="Integration">
+      <directory>tests/Integration</directory>
     </testsuite>
   </testsuites>
-  <coverage processUncoveredFiles="true">
+  <source>
     <include>
-      <directory>src/</directory>
+      <directory>src</directory>
     </include>
-    <exclude>
-      <directory suffix="Tests.php">tests/</directory>
-    </exclude>
-  </coverage>
+  </source>
 </phpunit>
