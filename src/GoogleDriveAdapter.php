@@ -9,6 +9,7 @@ use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\FileList;
 use Google\Service\Drive\Permission;
+use Google\Service\Exception as GoogleServiceException;
 use GuzzleHttp\Psr7\Utils;
 use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
@@ -685,6 +686,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
         } catch (Throwable $exception) {
             throw UnableToMoveFile::fromLocationTo($source, $destination, $exception);
         }
+
+        // The request for the moved file did not return a file.
+        throw UnableToMoveFile::fromLocationTo($source, $destination);
     }
 
     /**
@@ -732,18 +736,31 @@ class GoogleDriveAdapter implements FilesystemAdapter
         } // do not allow deleting root...
 
         $path = $this->prefixer->prefixPath($location);
-        $deleted = false;
-        if ($this->useDisplayPaths) {
-            try {
-                $ids = $this->toVirtualPath($path, false);
-                $deleted = $this->delete_by_id($ids);
-            } catch (Throwable $exception) {
-                $deleted = true;
+        try {
+            if ($this->useDisplayPaths) {
+                try {
+                    $ids = $this->toVirtualPath($path, false);
+                } catch (UnableToReadFile $exception) {
+                    // The path does not exist. Flysystem defines the delete of a missing file as a success.
+                    $this->resetRequest('', true);
+                    return;
+                }
+            } else {
+                $file = $this->getFileObject($path);
+                if (!$file instanceof DriveFile) {
+                    $this->resetRequest('', true);
+                    return;
+                }
+                $ids = $file->getId();
             }
-        } else {
-            if ($file = $this->getFileObject($path)) {
-                $deleted = $this->delete_by_id($file->getId());
+            $deleted = $this->delete_by_id($ids);
+        } catch (Throwable $exception) {
+            if ($exception instanceof GoogleServiceException && $exception->getCode() === 404) {
+                // The cache had the file, but Google Drive does not have it.
+                $this->resetRequest('', true);
+                return;
             }
+            throw UnableToDeleteFile::atLocation($path, $exception->getMessage(), $exception);
         }
 
         if ($deleted) {
