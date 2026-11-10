@@ -819,106 +819,153 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $path = $this->toVirtualPath($path, false, true);
         }
 
-        $redirect = null;
-        if (func_num_args() > 1) {
-            $redirect = func_get_arg(1);
-        }
-
-        if (!$redirect) {
-            $redirect = [
-                'cnt' => 0,
-                'url' => '',
-                'token' => '',
-                'cookies' => []
-            ];
-            if (($file = $this->getFileObject(/** @scrutinizer ignore-type */ $path))) {
-                if ($file->getMimeType() === self::DIRMIME) {
-                    throw UnableToReadFile::fromLocation($location, 'Unable To Read File');
-                }
-                $dlurl = $this->getDownloadUrl($file);
-                $client = $this->service->getClient();
-                /** @var array|string|object $token */
-                if ($client->isUsingApplicationDefaultCredentials()) {
-                    $token = $client->fetchAccessTokenWithAssertion();
-                } else {
-                    $token = $client->getAccessToken();
-                }
-                $access_token = '';
-                if (is_array($token)) {
-                    if (empty($token['access_token']) && !empty($token['refresh_token'])) {
-                        $token = $client->fetchAccessTokenWithRefreshToken();
-                    }
-                    $access_token = $token['access_token'];
-                } else {
-                    if (($token = @json_decode($token))) {
-                        $access_token = $token->access_token;
-                    }
-                }
-                $redirect = [
-                    'cnt' => 0,
-                    'url' => '',
-                    'token' => $access_token,
-                    'cookies' => []
-                ];
-            }
-        } else {
-            if ($redirect['cnt'] > 5) {
+        $file = $this->getFileObject(/** @scrutinizer ignore-type */ $path);
+        if ($file instanceof DriveFile) {
+            if ($file->getMimeType() === self::DIRMIME) {
                 throw UnableToReadFile::fromLocation($location, 'Unable To Read File');
             }
-            $dlurl = $redirect['url'];
-            $redirect['url'] = '';
-            $access_token = $redirect['token'];
-        }
-
-        if (!empty($dlurl)) {
-            $url = parse_url($dlurl);
-            $cookies = [];
-            if ($redirect['cookies']) {
-                foreach ($redirect['cookies'] as $d => $c) {
-                    if (strpos($url['host'], $d) !== false) {
-                        $cookies[] = $c;
-                    }
-                }
-            }
-            if (!empty($access_token)) {
-                $query = isset($url['query']) ? '?'.$url['query'] : '';
-                $stream = stream_socket_client('ssl://'.$url['host'].':443');
-                stream_set_timeout($stream, 300);
-                fwrite($stream, "GET {$url['path']}{$query} HTTP/1.1\r\n");
-                fwrite($stream, "Host: {$url['host']}\r\n");
-                fwrite($stream, "Authorization: Bearer {$access_token}\r\n");
-                fwrite($stream, "Connection: Close\r\n");
-                if ($cookies) {
-                    fwrite($stream, 'Cookie: '.implode('; ', $cookies)."\r\n");
-                }
-                fwrite($stream, "\r\n");
-                while (($res = trim(fgets($stream))) !== '') {
-                    // find redirect
-                    if (preg_match('/^Location: (.+)$/', $res, $m)) {
-                        $redirect['url'] = $m[1];
-                    }
-                    // fetch cookie
-                    if (strpos($res, 'Set-Cookie:') === 0) {
-                        $domain = $url['host'];
-                        if (preg_match('/^Set-Cookie:(.+)(?:domain=\s*([^ ;]+))?/i', $res, $c1)) {
-                            if (!empty($c1[2])) {
-                                $domain = trim($c1[2]);
-                            }
-                            if (preg_match('/([^ ]+=[^;]+)/', $c1[1], $c2)) {
-                                $redirect['cookies'][$domain] = $c2[1];
-                            }
-                        }
-                    }
-                }
-                if ($redirect['url']) {
-                    $redirect['cnt']++;
-                    fclose($stream);
-                    return $this->readStream($path, $redirect);
-                }
-                return $stream;
+            $dlurl = $this->getDownloadUrl($file);
+            $access_token = $this->resolveAccessToken();
+            if (!empty($dlurl) && $access_token !== '') {
+                return $this->streamDownload($location, $dlurl, $access_token);
             }
         }
         throw UnableToReadFile::fromLocation($location, 'Downloaded object does not contain a file resource.');
+    }
+
+    /**
+     * Get the current OAuth access token. The result is an empty string when no token is available.
+     *
+     * @return string
+     */
+    private function resolveAccessToken()
+    {
+        $client = $this->service->getClient();
+        /** @var array|string|object $token */
+        if ($client->isUsingApplicationDefaultCredentials()) {
+            $token = $client->fetchAccessTokenWithAssertion();
+        } else {
+            $token = $client->getAccessToken();
+        }
+        if (is_array($token)) {
+            if (empty($token['access_token']) && !empty($token['refresh_token'])) {
+                $token = $client->fetchAccessTokenWithRefreshToken();
+            }
+            return (string) ($token['access_token'] ?? '');
+        }
+        if (is_string($token) && ($token = @json_decode($token)) && isset($token->access_token)) {
+            return (string) $token->access_token;
+        }
+        return '';
+    }
+
+    /**
+     * Open a download URL as a stream and follow the redirects.
+     *
+     * The access token and the cookies go only to Google hosts. A redirect to a different host
+     * gets a request without credentials, so a third party cannot receive the token.
+     *
+     * @param  string  $location  Path for the error messages
+     * @param  string  $dlurl  Absolute HTTPS URL
+     * @param  string  $access_token
+     * @param  array  $cookies  Cookies from the previous responses: [domain => [name => 'name=value']]
+     * @param  int  $redirects  Number of redirects before this request
+     * @return resource
+     *
+     * @throws UnableToReadFile
+     */
+    private function streamDownload($location, $dlurl, $access_token, $cookies = [], $redirects = 0)
+    {
+        if ($redirects > 5) {
+            throw UnableToReadFile::fromLocation($location, 'Unable To Read File');
+        }
+        $url = parse_url($dlurl);
+        if (!is_array($url) || empty($url['host']) || strtolower($url['scheme'] ?? '') !== 'https') {
+            throw UnableToReadFile::fromLocation($location, 'Download URL is not an absolute HTTPS URL.');
+        }
+        $host = strtolower($url['host']);
+        $trusted = self::isTrustedGoogleHost($host);
+
+        $errno = 0;
+        $errstr = '';
+        $stream = @stream_socket_client('ssl://'.$host.':'.($url['port'] ?? 443), $errno, $errstr);
+        if ($stream === false) {
+            throw UnableToReadFile::fromLocation($location, 'Connection to '.$host.' failed: '.$errstr.' ('.$errno.')');
+        }
+        stream_set_timeout($stream, 300);
+
+        $query = isset($url['query']) ? '?'.$url['query'] : '';
+        fwrite($stream, 'GET '.($url['path'] ?? '/')."{$query} HTTP/1.1\r\n");
+        fwrite($stream, "Host: {$host}\r\n");
+        if ($trusted) {
+            fwrite($stream, "Authorization: Bearer {$access_token}\r\n");
+            $send = [];
+            foreach ($cookies as $domain => $pairs) {
+                if (self::hostMatchesDomain($host, (string) $domain)) {
+                    $send[] = implode('; ', $pairs);
+                }
+            }
+            if ($send) {
+                fwrite($stream, 'Cookie: '.implode('; ', $send)."\r\n");
+            }
+        }
+        fwrite($stream, "Connection: Close\r\n");
+        fwrite($stream, "\r\n");
+
+        $redirect = '';
+        while (($res = trim((string) fgets($stream))) !== '') {
+            // find redirect
+            if (preg_match('/^Location:\s*(.+)$/i', $res, $m)) {
+                $redirect = $m[1];
+            }
+            // fetch cookie; keep only the cookies that a Google host sets
+            if ($trusted && preg_match('/^Set-Cookie:\s*(([^=;\s]+)=[^;]*)/i', $res, $c1)) {
+                $domain = $host;
+                if (preg_match('/;\s*domain=\.?([^;\s]+)/i', $res, $c2) && self::hostMatchesDomain($host, $c2[1])) {
+                    $domain = strtolower($c2[1]);
+                }
+                $cookies[$domain][$c1[2]] = $c1[1];
+            }
+        }
+        if ($redirect !== '') {
+            fclose($stream);
+            if ($redirect[0] === '/' && strncmp($redirect, '//', 2) !== 0) {
+                // relative redirect on the same host
+                $redirect = 'https://'.$host.(isset($url['port']) ? ':'.$url['port'] : '').$redirect;
+            }
+            return $this->streamDownload($location, $redirect, $access_token, $cookies, $redirects + 1);
+        }
+        return $stream;
+    }
+
+    /**
+     * Is the host a Google host that can receive the access token?
+     *
+     * @param  string  $host
+     * @return bool
+     */
+    private static function isTrustedGoogleHost($host)
+    {
+        foreach (['googleapis.com', 'googleusercontent.com', 'google.com'] as $domain) {
+            if (self::hostMatchesDomain($host, $domain)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Exact domain match: the host is the domain or a subdomain of the domain.
+     *
+     * @param  string  $host
+     * @param  string  $domain
+     * @return bool
+     */
+    private static function hostMatchesDomain($host, $domain)
+    {
+        $host = strtolower($host);
+        $domain = ltrim(strtolower($domain), '.');
+        return $domain !== '' && ($host === $domain || str_ends_with($host, '.'.$domain));
     }
 
     /**
@@ -2027,7 +2074,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
                 $query = $is_last ? [] : ['mimeType = "'.self::DIRMIME.'"'];
                 if ($this->useSinglePathTransaction) {
-                    $query[] = "name = '{$token}'";
+                    $query[] = "name = '".self::escapeQueryValue($token)."'";
                 }
                 $items[] = $this->getItems($id, false, 0, implode(' and ', $query));
                 if (DEBUG_ME) {
@@ -2447,6 +2494,19 @@ class GoogleDriveAdapter implements FilesystemAdapter
             return $mimeType;
         }
         return $detector->detectMimeTypeFromPath($path) ?: 'text/plain';
+    }
+
+    /**
+     * Escape a value for use in a single-quoted literal of a Google Drive query.
+     *
+     * @param  string  $value
+     * @return string
+     *
+     * @see https://developers.google.com/drive/api/guides/ref-search-terms
+     */
+    public static function escapeQueryValue($value)
+    {
+        return str_replace(['\\', "'"], ['\\\\', "\\'"], (string) $value);
     }
 
     /**
