@@ -3,8 +3,7 @@
 [![Flysystem API version](https://img.shields.io/badge/Flysystem%20API-V3-blue?style=flat-square)](https://github.com/thephpleague/flysystem/)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://img.shields.io/travis/com/masbug/flysystem-google-drive-ext/2.x.svg?style=flat-square)](https://travis-ci.com/masbug/flysystem-google-drive-ext)
-[![StyleCI](https://styleci.io/repos/113434522/shield?branch=2.x)](https://styleci.io/repos/113434522)
+[![Tests](https://github.com/masbug/flysystem-google-drive-ext/actions/workflows/tests.yml/badge.svg?branch=3.x)](https://github.com/masbug/flysystem-google-drive-ext/actions/workflows/tests.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 
 Google uses unique IDs for each folder and file. This makes it difficult to integrate with other storage services which use normal paths.
@@ -15,24 +14,26 @@ For example: virtual path `/Xa3X9GlR6EmbnY1RLVTk5VUtOVkk/0B3X9GlR6EmbnY1RLVTk5VU
 
 ## Installation
 
-- For **Flysystem V3** or **Laravel >= 9.x.x** (PHP 8.1 or later)
-
 ```bash
 composer require masbug/flysystem-google-drive-ext
 ```
 
-  Versions 2.6.0 and later require the patched releases of `guzzlehttp/guzzle` (7.15.2+ or 8.0.1+),
-  `guzzlehttp/psr7` (2.12.3+ or 3.x), `league/flysystem` (3.35.3+) and `google/apiclient` (2.19+).
+Select the version of the package for your environment:
 
-- For **Flysystem V2** use version 2.5.0 of the package (no security updates)
+| Package version | PHP | Flysystem | Laravel | Status |
+|---|---|---|---|---|
+| 3.x | 8.1 or later | V3 (3.35.3 or later) | 9.x and later | Active |
+| 2.6 and later | 8.1 or later | V3 (3.35.3 or later) | 9.x and later | Security fixes only |
+| 2.5.0 | 7.2 or later | V2 and V3 | 9.x and later | No updates |
+| 1.x | 7.2 or later | V1 | 8.x and earlier | No updates |
+
+Versions 2.6 and 3.x require the patched releases of `guzzlehttp/guzzle` (7.15.2+ or 8.0.1+),
+`guzzlehttp/psr7` (2.12.3+ or 3.x) and `league/flysystem` (3.35.3+).
+
+To install an earlier line, add the version constraint:
 
 ```bash
-composer require masbug/flysystem-google-drive-ext:"2.5.0"
-```
-
-- For **Flysystem V1** or **Laravel <= 8.x.x** use 1.x.x version of the package
-
-```bash
+composer require masbug/flysystem-google-drive-ext:"^2.6"
 composer require masbug/flysystem-google-drive-ext:"^1.0.0"
 ```
 
