@@ -62,7 +62,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
      *
      * @var string
      */
-    const FETCHFIELDS_GET = 'id,name,mimeType,createdTime,modifiedTime,parents,permissions,size,webContentLink,webViewLink';
+    const FETCHFIELDS_GET = 'id,name,mimeType,createdTime,modifiedTime,parents,permissions,size,webContentLink,webViewLink,shortcutDetails';
 
     /**
      * Maximum number of sub-requests allowed in a single Google Drive batch request.
@@ -479,13 +479,16 @@ class GoogleDriveAdapter implements FilesystemAdapter
             $virtual_path = $path;
         }
 
+        $result = null;
+        $cause = null;
         try {
             $result = $this->upload(/** @scrutinizer ignore-type */ $virtual_path, $contents, $config, $updating);
         } catch (Throwable $e) {
-            // Unnecesary
+            // Keep the original error. It becomes the cause of the exception below.
+            $cause = $e;
         }
-        if (!isset($result) || !$result) {
-            throw UnableToWriteFile::atLocation($path, 'Not able to write the file');
+        if (!$result) {
+            throw UnableToWriteFile::atLocation($path, $cause ? $cause->getMessage() : 'Not able to write the file', $cause);
         }
     }
 
@@ -561,8 +564,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
                 $this->cachedPaths[trim($newpathDir.'/'.$fileName, '/')] = $id;
             }
 
-            $srcFile = $this->cacheFileObjects[$srcId];
-            $visibility = $this->getRawVisibility($srcFile);
+            // The path cache can supply $srcId without an entry in cacheFileObjects.
+            $srcFile = $this->getFileObject($srcId);
+            $visibility = $srcFile instanceof DriveFile ? $this->getRawVisibility($srcFile) : Visibility::PRIVATE;
 
             if ($config->get('visibility') === Visibility::PUBLIC || $visibility === Visibility::PUBLIC) {
                 $this->publish($id);
@@ -614,6 +618,9 @@ class GoogleDriveAdapter implements FilesystemAdapter
 
             $params = [];
             $origenFile = $this->getFileObject($srcId);
+            if (!$origenFile instanceof DriveFile) {
+                throw UnableToMoveFile::fromLocationTo($source, $destination);
+            }
             $parents = $origenFile->getParents();
             if (!in_array($newParentId, $parents)) {
                 $params = array_merge($params, [
@@ -647,8 +654,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
                     $this->cachedPaths[trim($newpathDir.'/'.$fileName, '/')] = $id;
                 }
 
-                $srcFile = $this->cacheFileObjects[$srcId];
-                $visibility = $this->getRawVisibility($srcFile);
+                // A move keeps the file ID, so $newFile is the moved source file.
+                $visibility = $this->getRawVisibility($newFile);
 
                 if ($config->get('visibility') === Visibility::PUBLIC || $visibility === Visibility::PUBLIC) {
                     $this->publish($id);
@@ -1146,7 +1153,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
      */
     public function hasDir($path)
     {
-        $meta = $this->getMetadata($path)->extraMetadata();
+        $metadata = $this->getMetadata($path);
+        $meta = $metadata ? $metadata->extraMetadata() : [];
         return (is_array($meta) && isset($meta['hasdir'])) ? $meta : [
             'hasdir' => true
         ];
@@ -1334,8 +1342,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
         $id = $object->getId();
         $path_parts = $this->splitFileExtension($object->getName());
         if ($object->mimeType == self::SHORTCUTMIME) {
-            $object->mimeType = $object->shortcutDetails->targetMimeType;
-            $id = $object->shortcutDetails->targetId;
+            $shortcut = $object->shortcutDetails;
+            if ($shortcut === null || $shortcut->targetMimeType === null || $shortcut->targetId === null) {
+                // The target does not exist, is not accessible, or the request did not include the field.
+                throw UnableToReadFile::fromLocation((string) $object->getName(), 'Shortcut target is not available');
+            }
+            $object->mimeType = $shortcut->targetMimeType;
+            $id = $shortcut->targetId;
         }
         $type = $object->mimeType === self::DIRMIME ? 'dir' : 'file';
         $result = [
@@ -2041,7 +2054,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
     protected function cachePaths($displayPath, $i, $indices, $parentItemId)
     {
         $nextItemId = $parentItemId;
-        for ($count = count($indices); $i < $indices; $i++) {
+        for ($count = count($indices); $i < $count; $i++) {
             $token = $this->getToken($displayPath, $i, $indices);
             if (empty($token) && $token !== '0') {
                 return;

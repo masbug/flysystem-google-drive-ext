@@ -348,10 +348,14 @@ class StreamableUpload
         if ($body) {
             $headers = [
                 'content-type'          => 'application/json; charset=UTF-8',
-                'content-length'        => (string) $body->getSize(),
                 'x-upload-content-type' => $this->mimeType,
                 'expect'                => '',
             ];
+            // The size of the body can be unknown. An empty content-length header is not valid.
+            $bodySize = $body->getSize();
+            if ($bodySize !== null) {
+                $headers['content-length'] = (string) $bodySize;
+            }
             if (is_int($this->size)) {
                 $headers['x-upload-content-length'] = (string) $this->size;
             }
