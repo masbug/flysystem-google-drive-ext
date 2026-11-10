@@ -51,6 +51,18 @@ class GoogleDriveAdapter implements FilesystemAdapter
     const FILE_OBJECT_MINIMUM_VALID_TIME = 10;
 
     /**
+     * Number of times the Google client sends a request again after a temporary error
+     * (HTTP 500, HTTP 503, rate limit, connection failure).
+     *
+     * The adapter sets this value only when the application did not set the 'retry'
+     * configuration of the Google client. To have no retries:
+     * $client->setConfig('retry', ['retries' => 0]) before you create the adapter.
+     *
+     * @var int
+     */
+    const DEFAULT_RETRIES = 3;
+
+    /**
      * Fetch fields setting for list
      *
      * @var string
@@ -263,6 +275,11 @@ class GoogleDriveAdapter implements FilesystemAdapter
     public function __construct($service, $root = null, $options = [])
     {
         $this->service = $service;
+
+        $client = $service->getClient();
+        if (empty($client->getConfig('retry'))) {
+            $client->setConfig('retry', ['retries' => self::DEFAULT_RETRIES]);
+        }
 
         $this->options = array_replace_recursive(static::$defaultOptions, $options);
 
