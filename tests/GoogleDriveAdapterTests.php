@@ -18,11 +18,27 @@ class GoogleDriveAdapterTests extends FilesystemAdapterTestCase
         $this->timeoutForExceptionRetry = $timout;
     }
 
+    /**
+     * Path of the credentials file.
+     *
+     * The file is outside the repository, so that git cannot commit it. The default location is
+     * the directory that contains the project directory. The environment variable
+     * GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE can give a different path.
+     */
+    private static function credentialsFile(): string
+    {
+        $file = getenv('GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE');
+        if (is_string($file) && $file !== '') {
+            return $file;
+        }
+        return dirname(__DIR__, 2).'/google-drive-service-account.json';
+    }
+
     protected static function createFilesystemAdapter(): FilesystemAdapter
     {
-        $file = __DIR__.'/../google-drive-service-account.json';
+        $file = self::credentialsFile();
         if (!file_exists($file)) {
-            self::markTestSkipped("No google service account file {$file} found in project root.");
+            self::markTestSkipped("No google service account file {$file} found.");
         }
         try {
             $config = json_decode(file_get_contents($file), true);
