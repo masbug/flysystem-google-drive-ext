@@ -69,9 +69,6 @@ class StreamableUpload
     /** @var \Psr\Http\Message\RequestInterface */
     private $request;
 
-    /** @var string */
-    private $boundary;
-
     /**
      * Result code from last HTTP call
      *
@@ -119,7 +116,7 @@ class StreamableUpload
      *
      * @param  int  $size  file size in bytes
      */
-    public function setFileSize($size)
+    public function setFileSize($size): void
     {
         $this->size = $size;
     }
@@ -129,7 +126,7 @@ class StreamableUpload
      *
      * @return int progress in bytes uploaded.
      */
-    public function getProgress()
+    public function getProgress(): int
     {
         return $this->progress;
     }
@@ -215,7 +212,7 @@ class StreamableUpload
             $range = $response->getHeaderLine('range');
             if ($range) {
                 $range_array = explode('-', $range);
-                $this->progress = $range_array[1] + 1;
+                $this->progress = (int) $range_array[1] + 1;
             }
 
             // Allow for changing upload URLs.
@@ -265,8 +262,7 @@ class StreamableUpload
         $postBody = '';
         $contentType = false;
 
-        $meta = (string)$request->getBody();
-        $meta = is_string($meta) ? json_decode($meta, true) : $meta;
+        $meta = json_decode((string)$request->getBody(), true);
 
         $uploadType = $this->getUploadType($meta);
         $request = $request->withUri(
@@ -285,8 +281,7 @@ class StreamableUpload
             } else {
                 if (self::UPLOAD_MULTIPART_TYPE == $uploadType) {
                     // This is a multipart/related upload.
-                    $boundary = $this->boundary ?: /* @scrutinizer ignore-call */ mt_rand();
-                    $boundary = str_replace('"', '', $boundary);
+                    $boundary = (string) mt_rand();
                     $contentType = 'multipart/related; boundary='.$boundary;
                     $related = "--$boundary\r\n";
                     $related .= "Content-Type: application/json; charset=UTF-8\r\n";
@@ -333,7 +328,7 @@ class StreamableUpload
         return self::UPLOAD_MULTIPART_TYPE;
     }
 
-    public function getResumeUri()
+    public function getResumeUri(): string
     {
         if (null === $this->resumeUri) {
             $this->resumeUri = $this->fetchResumeUri();
@@ -400,12 +395,12 @@ class StreamableUpload
         $this->request = $this->request->withUri($uri);
     }
 
-    public function setChunkSize($chunkSize)
+    public function setChunkSize($chunkSize): void
     {
         $this->chunkSize = $chunkSize;
     }
 
-    public function getRequest()
+    public function getRequest(): RequestInterface
     {
         return $this->request;
     }

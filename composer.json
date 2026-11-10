@@ -29,11 +29,15 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^9.3",
+        "phpstan/phpstan": "^2.0",
         "league/flysystem-adapter-test-utilities": "^3.0"
     },
     "autoload": {
         "psr-4": {
             "Masbug\\Flysystem\\": "src"
         }
+    },
+    "scripts": {
+        "analyse": "phpstan analyse"
     }
 }
