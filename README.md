@@ -1,6 +1,6 @@
 # Flysystem adapter for Google Drive with seamless virtual<=>display path translation
 
-[![Flysystem API version](https://img.shields.io/badge/Flysystem%20API-V2-blue?style=flat-square)](https://github.com/thephpleague/flysystem/)
+[![Flysystem API version](https://img.shields.io/badge/Flysystem%20API-V3-blue?style=flat-square)](https://github.com/thephpleague/flysystem/)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/masbug/flysystem-google-drive-ext.svg?style=flat-square)](https://packagist.org/packages/masbug/flysystem-google-drive-ext)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://img.shields.io/travis/com/masbug/flysystem-google-drive-ext/2.x.svg?style=flat-square)](https://travis-ci.com/masbug/flysystem-google-drive-ext)
@@ -15,10 +15,19 @@ For example: virtual path `/Xa3X9GlR6EmbnY1RLVTk5VUtOVkk/0B3X9GlR6EmbnY1RLVTk5VU
 
 ## Installation
 
-- For **Flysystem V2/V3** or **Laravel >= 9.x.x**
+- For **Flysystem V3** or **Laravel >= 9.x.x** (PHP 8.1 or later)
 
 ```bash
 composer require masbug/flysystem-google-drive-ext
+```
+
+  Versions 2.6.0 and later require the patched releases of `guzzlehttp/guzzle` (7.15.2+ or 8.0.1+),
+  `guzzlehttp/psr7` (2.12.3+ or 3.x), `league/flysystem` (3.35.3+) and `google/apiclient` (2.19+).
+
+- For **Flysystem V2** use version 2.5.0 of the package (no security updates)
+
+```bash
+composer require masbug/flysystem-google-drive-ext:"2.5.0"
 ```
 
 - For **Flysystem V1** or **Laravel <= 8.x.x** use 1.x.x version of the package
